@@ -10,6 +10,7 @@ torch = { url = "https://download.pytorch.org/whl/cpu/torch-1.13.1%2Bcpu-cp310-c
 torchvision = { url = "https://download.pytorch.org/whl/cpu/torchvision-0.14.1%2Bcpu-cp310-cp310-linux_x86_64.whl" }
 torchaudio = { url = "https://download.pytorch.org/whl/cpu/torchaudio-0.13.1%2Bcpu-cp310-cp310-linux_x86_64.whl" }
 fastai = "^2.7.10"
+dvc = "^2.38.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
