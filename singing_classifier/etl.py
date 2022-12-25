@@ -25,9 +25,14 @@ class AudioSource:
     segments: frozenset[AudioSegment]
 
 
+def to_youtube_url(tag: str) -> str:
+    """Returns URL from youtube video ID."""
+    return "https://www.youtube.com/watch?v=" + tag
+
+
 def extract_audio_sources(
     source_csv: PathLike,
-    url_creator: Callable,
+    url_creator: Callable = to_youtube_url,
     ignore_names: list[str] = None,
 ) -> list[AudioSource]:
     data = pd.read_csv(source_csv)[["name", "num", "time_start", "time_end"]]

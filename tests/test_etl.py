@@ -6,7 +6,15 @@ from singing_classifier.etl import (
     AudioSegment,
     AudioSource,
     extract_audio_sources,
+    to_youtube_url,
 )
+
+
+def test_to_youtube_url():
+    """Add tag at the end."""
+    tag = "abc"
+    expected = "https://www.youtube.com/watch?v=" + tag
+    assert to_youtube_url(tag) == expected
 
 
 def test_extract_audio_sources(tmp_path: Path):
