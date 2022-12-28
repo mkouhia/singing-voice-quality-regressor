@@ -1,12 +1,68 @@
 """Download data files for the SVQTD dataset"""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
-from typing import Callable, Iterable
+from collections.abc import Callable
 
 import pandas as pd
 import youtube_dl
+
+
+class CachedFile(ABC):
+
+    """File, that may be cached logally, or downloaded/produced."""
+
+    def __init__(self):
+        self._dest: Path = None
+        self._cache_dir: Path = None
+
+    @property
+    @abstractmethod
+    def _file_glob(self) -> str:
+        """Returns `glob` expression with which to find file in cache dir"""
+
+    @abstractmethod
+    def get(self, cache_dir: Path = None, force=False) -> Path:
+        """Get file, store to cache_dir.
+
+        If file is cached, return cached file location.
+        """
+        self._cache_dir = cache_dir
+
+    def _get_cache_dir(self) -> Path:
+        """Get dir from user config"""
+        raise NotImplementedError
+
+    @property
+    def cache_dir(self) -> Path:
+        """Cache directory location on disk."""
+        return self._cache_dir or self._get_cache_dir()
+
+    @cache_dir.setter
+    def cache_dir(self, value: PathLike):
+        self._cache_dir = Path(value)
+
+    @property
+    def dest(self) -> Path | None:
+        """Cached file location on disk, or None if not in cache."""
+        if self._dest is not None:
+            return self._dest
+        if self.cache_dir is None:
+            return None
+        return next(self.cache_dir.glob(self._file_glob), None)
+
+    @dest.setter
+    def dest(self, value: Path):
+        """Set cached file location on disk."""
+        self._dest = value
+
+    @property
+    def is_cached(self) -> bool:
+        """Downloaded content exists on disk."""
+        dest_ = self.dest
+        return dest_ is not None and dest_.is_file()
 
 
 @dataclass(frozen=True, eq=True)

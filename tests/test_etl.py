@@ -7,9 +7,86 @@ import pytest
 from singing_classifier.etl import (
     AudioSegment,
     AudioSource,
+    CachedFile,
     extract_audio_sources,
     to_youtube_url,
 )
+
+
+class CacheImpl(CachedFile):
+
+    """Test implementation for testing shared cache methods."""
+
+    @property
+    def _file_glob(self):
+        return "subdir/test_id.*"
+
+    def get(self, cache_dir: Path = None, force=False) -> Path:
+        super().get(cache_dir, force)
+        if not force and self.is_cached:
+            return self.dest
+
+        self._dest = self.cache_dir / "subdir" / "test_id.1"
+        self._dest.mkdir(parents=True)
+        self._dest.touch()
+        return self._dest
+
+
+class TestCache:
+
+    """Test file caching."""
+
+    @pytest.fixture(name="cached_file")
+    def fx_cached_file(self) -> CachedFile:
+        """Returns test cached file object."""
+        return CacheImpl()
+
+    def test_is_cached(self, tmp_path: Path, cached_file: CachedFile):
+        """If file exists on disk, returns True."""
+        cached_file.dest = tmp_path / "file.ext"
+        cached_file.dest.touch()
+
+        assert cached_file.is_cached
+
+    def test_cache_found(self, tmp_path: Path, cached_file: CachedFile):
+        """Cache location is found, even though dest is not set."""
+        cached_file.cache_dir = tmp_path
+        (tmp_path / "subdir").mkdir()
+        (tmp_path / "subdir" / "test_id.xyz").touch()
+
+        assert cached_file.is_cached
+
+    def test_not_cached(self, tmp_path: Path, cached_file: CachedFile):
+        """If not-None dest does not exists on disk, returns False."""
+        cached_file.dest = tmp_path / "file.ext"
+        (tmp_path / "subdir").mkdir()
+        (tmp_path / "subdir" / "test_id.xyz").touch()
+
+        assert not cached_file.is_cached
+
+    def test_get_cached(self, tmp_path: Path, cached_file: CachedFile):
+        """If file is cached, return cached."""
+        cached_file.dest = tmp_path / "file.ext"
+        cached_file.dest.touch()
+
+        received = cached_file.get()
+        assert received == cached_file.dest
+
+    def test_get(self, tmp_path: Path, cached_file: CachedFile):
+        """If file is not cached, perform get action."""
+        received = cached_file.get(cache_dir=tmp_path)
+        assert received == tmp_path / "subdir" / "test_id.1"
+        assert cached_file.dest == received
+
+    def test_get_force(self, tmp_path: Path, cached_file: CachedFile):
+        """Even though cached, if force, perform get action."""
+        cached_file.dest = tmp_path / "file.ext"
+        cached_file.dest.touch()
+
+        assert cached_file.is_cached
+
+        received = cached_file.get(cache_dir=tmp_path, force=True)
+        assert received == tmp_path / "subdir" / "test_id.1"
 
 
 def test_to_youtube_url():
