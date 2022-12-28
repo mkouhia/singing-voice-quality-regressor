@@ -1,5 +1,8 @@
+"""Module-level tests."""
+
 from singing_classifier import __version__
 
 
 def test_version():
-    assert __version__ == '0.1.0'
+    """Version is not changed by accident."""
+    assert __version__ == "0.1.0"
