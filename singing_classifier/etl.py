@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 from os import PathLike
-from typing import Callable
+from pathlib import Path
+from typing import Callable, Iterable
 
 import pandas as pd
+import youtube_dl
 
 
 @dataclass(frozen=True, eq=True)
@@ -23,6 +25,38 @@ class AudioSource:
     name: str
     url: str
     segments: frozenset[AudioSegment]
+
+    def get_youtube(self, dest_dir: PathLike, force=False) -> Path:
+        """Download video content from YouTube.
+
+        Args:
+            url: URL to YouTube video, in format
+                'https://www.youtube.com/watch?v=...'
+            dest_dir: Destination directory location on disk.
+            force: Force download. If false, use already downloaded content.
+
+        Returns:
+            Location of downloaded file on disk.
+        """
+        dest_dir_path = Path(dest_dir)
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": str(dest_dir_path.absolute()) + "/%(id)s.%(ext)s",
+            # 'postprocessors': [{
+            #     'key': 'FFmpegExtractAudio',
+            #     'preferredcodec': 'mp3',
+            #     'preferredquality': '192',
+            # }],
+        }
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            ydl_return_code = ydl.download([self.url])
+
+        if ydl_return_code == 0:
+            matching_files = list(dest_dir_path.glob(f"{self.name}.*"))
+            assert len(matching_files) == 1
+            # TODO set downloaded location to object attributes
+            return matching_files[0]
+        raise NotImplementedError
 
 
 def to_youtube_url(tag: str) -> str:
@@ -64,3 +98,6 @@ def _grouped_df_to_audiosource(
 def _row_to_segment(row):
     return AudioSegment(row["num"], row["time_start"], row["time_end"])
 
+
+if __name__ == "__main__":
+    ...

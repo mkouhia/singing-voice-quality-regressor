@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from singing_classifier.etl import (
     AudioSegment,
     AudioSource,
@@ -27,7 +29,7 @@ test,0,0.0,0.0
 0QzJ86rMHzQ,0,7.464,25.834"""
     csv_loc = tmp_path / "test.csv"
     csv_loc.write_text(content)
-    
+
     def url_creator(tag):
         return "abc" + tag
 
@@ -53,10 +55,22 @@ test,0,0.0,0.0
             ),
         ),
     }
-        
+
     received = extract_audio_sources(
         csv_loc, url_creator=url_creator, ignore_names=["test"]
     )
-    
+
     assert set(received) == expected
 
+
+@pytest.mark.integration_test
+def test_get_youtube(tmp_path: Path):
+    """File from URL is stored onto disk"""
+    source = AudioSource(
+        "BaW_jenozKc", "https://www.youtube.com/watch?v=BaW_jenozKc", frozenset()
+    )
+
+    received_path = source.get_youtube(dest_dir=tmp_path)
+
+    assert received_path.with_suffix("") == tmp_path / source.name
+    assert received_path.is_file()
