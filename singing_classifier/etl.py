@@ -25,12 +25,12 @@ class CachedFile(ABC):
         """Returns `glob` expression with which to find file in cache dir"""
 
     @abstractmethod
-    def get(self, cache_dir: Path = None, force=False) -> Path:
+    def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Get file, store to cache_dir.
 
         If file is cached, return cached file location.
         """
-        self._cache_dir = cache_dir
+        self._cache_dir = Path(cache_dir) if cache_dir is not None else None
 
     def _get_cache_dir(self) -> Path:
         """Get dir from user config"""
@@ -121,7 +121,7 @@ class YTAudio(CachedFile):
         """Returns URL from youtube video ID."""
         return f"https://www.youtube.com/watch?v={self.tag}"
 
-    def get(self, cache_dir: Path = None, force=False) -> Path:
+    def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Download audio from YouTube.
 
         Attempt to serve content from cache, if present. File
@@ -135,11 +135,16 @@ class YTAudio(CachedFile):
             File location for the downloaded file.
 
         Raises:
-            UserWarning on failed download.
+            youtube_dl.DownloadError on failed download.
+            UserWarning on other download error.
         """
         super().get(cache_dir, force)
         if not force and self.is_cached:
             return self.dest
+
+        # Ensure that competing files are not in download location
+        for disk_file in self.cache_dir.glob(f"{self.tag}.*"):
+            disk_file.unlink()
 
         ydl_opts = {
             "format": "bestaudio/best",
@@ -154,7 +159,9 @@ class YTAudio(CachedFile):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl_return_code = ydl.download([self.url])
         except youtube_dl.DownloadError as exc:
-            raise UserWarning(f"Download failed on {self.url}, {ydl_opts=}") from exc
+            raise UserWarning(
+                f"Download failed on {self.url}, {ydl_opts=}; {exc}"
+            ) from exc
 
         if ydl_return_code == 0:
             matching_files = list(self.cache_dir.glob(f"{self.tag}.*"))
@@ -279,7 +286,7 @@ class AudioSegment(CachedFile):
     def _file_glob(self) -> str:
         return f"{self.source.tag}_{self.id_}.*"
 
-    def get(self, cache_dir: Path = None, force=False) -> Path:
+    def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Split audio segment from source file.
 
         Attempt to serve content from cache, if present. File
@@ -306,8 +313,8 @@ class AudioSegment(CachedFile):
             raise UserWarning("Audio source is not cached.")
 
         source_path = self.source.dest
-        suffix = source_path.suffix if self.format == "copy" else self.format
-        dest = self.cache_dir / f"{self.source.tag}_{self.id_}.{suffix}"
+        suffix = source_path.suffix if self.format == "copy" else f".{self.format}"
+        dest = self.cache_dir / f"{self.source.tag}_{self.id_}{suffix}"
 
         call_args = [
             "-y",
