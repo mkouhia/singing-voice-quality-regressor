@@ -1,8 +1,16 @@
 """Download data files for the SVQTD dataset"""
 
+import argparse
+import multiprocessing
+import queue
 import subprocess
+import sys
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from io import TextIOBase
+from multiprocessing import Lock, Process, Queue
+from multiprocessing.synchronize import Lock as LockBase
 from os import PathLike
 from pathlib import Path
 
@@ -376,5 +384,189 @@ class AudioSegment(CachedFile):
         return data
 
 
+def get_audio_files(
+    segments: PathLike | TextIOBase,
+    out_dir: PathLike,
+    summary_path: PathLike | TextIOBase = None,
+    force: bool = False,
+    n_processes: int = 1,
+    num_tries: int = 0,
+    retry_delay_seconds: int = 0,
+):
+    """Get audio files from YouTube.
+
+    Args:
+        segments: Segment definition csv file or path to such.
+        out_dir: Directory, where audio files are stored.
+        summary_path: Path or file, where to store summary. If None, do
+          not write summary.
+        force: Force download all files.
+        n_processes: Number of parallel download processes.
+        num_tries: Number of times to try a failed download, before
+          leaving it as failed.
+        retry_delay_seconds: Wait time after a failed download before
+          a retry.
+    """
+    in_queue = Queue()
+    summary_lock = Lock()
+    for yt_audio in YTAudio.from_csv(segments):
+        in_queue.put((yt_audio, {"num_tries": 0, "prev_time": 0.0}))
+
+    if summary_path is not None:
+        _write_row(summary_path, "tag", "path", "error_reason")
+
+    processes = []
+    for _ in range(n_processes or 1):
+        proc = AudioDownloadProcess(
+            in_queue,
+            out_dir,
+            summary_path,
+            summary_lock,
+            force,
+            num_tries,
+            retry_delay_seconds,
+        )
+        processes.append(proc)
+        proc.start()
+
+    for proc in processes:
+        proc.join()
+
+
+class AudioDownloadProcess(Process):
+
+    """Process for downloading files in parallel."""
+
+    def __init__(
+        self,
+        in_queue: Queue,
+        out_dir: PathLike,
+        summary_path: PathLike | TextIOBase,
+        summary_lock: LockBase,
+        force: bool,
+        num_tries: int,
+        retry_delay_seconds: float,
+    ) -> None:
+        super().__init__(daemon=True)
+        self.in_queue = in_queue
+        self.out_dir = out_dir
+        self.summary_path = summary_path
+        self.summary_lock = summary_lock
+        self.force = force
+        self.num_tries = num_tries
+        self.retry_delay_seconds = retry_delay_seconds
+
+    def run(self):
+        while True:
+            try:
+                yt_audio, run_kwargs = self.in_queue.get(block=False)
+            except queue.Empty:
+                break
+
+            if (
+                prev_time := run_kwargs["prev_time"]
+            ) > 0.0 and time.time() - prev_time < self.retry_delay_seconds:
+                self.in_queue.put((yt_audio, run_kwargs))
+                return
+
+            try:
+                out_path = yt_audio.get(self.out_dir, self.force)
+                run_kwargs["out_path"] = out_path
+                self._write_summary_row(yt_audio.tag, **run_kwargs)
+            except (youtube_dl.DownloadError, UserWarning) as exc:
+                run_kwargs["num_tries"] += 1
+                run_kwargs["prev_time"] = time.time()
+                run_kwargs["error_reason"] = str(exc)
+                if run_kwargs["num_tries"] == self.num_tries:
+                    self._write_summary_row(yt_audio.tag, **run_kwargs)
+                else:
+                    self.in_queue.put((yt_audio, run_kwargs))
+
+    def _write_summary_row(
+        self, tag: str, out_path: Path, error_reason: str = "", **kwargs
+    ):
+        """Write summary row to out_path, with file lock."""
+        del kwargs  # unused, only sink for extra arguments
+        if self.summary_path is None:
+            return
+        self.summary_lock.acquire()
+        try:
+            _write_row(self.summary_path, tag, out_path, error_reason)
+        finally:
+            self.summary_lock.release()
+
+
+def _write_row(summary_path: PathLike | TextIOBase, *args):
+    """Write content row to path or text io."""
+    content = ",".join(str(i) for i in args) + "\n"
+    if isinstance(summary_path, TextIOBase):
+        summary_path.write(content)
+    else:
+        Path(summary_path).write_text(content, encoding="utf-8")
+
+
+def _type_dir_or_create(dest: str) -> Path:
+    """Create directory if required, raise if there is a file."""
+    if (dest_path := Path(dest)).is_file():
+        raise FileExistsError(f"Cannot write to {dest}: file exists in place")
+
+    if not dest_path.exists():
+        dest_path.mkdir(parents=True)
+    return dest_path
+
+
 if __name__ == "__main__":
-    ...
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(help="commands", dest="command")
+
+    n_cpus = multiprocessing.cpu_count()
+    parser_get = subparsers.add_parser(
+        "get",
+        help="Download audio from YouTube.",
+    )
+    parser_get.add_argument(
+        "--n-processes",
+        "-n",
+        type=int,
+        default=n_cpus,
+        help=f"Number of parallel download processes. Default: {n_cpus}.",
+    )
+    parser_get.add_argument(
+        "--summary-path",
+        "-s",
+        help="Summary csv output location. If not specified, do not produce a summary.",
+        type=argparse.FileType("w"),
+    )
+    parser_get.add_argument(
+        "--force", action="store_true", help="Re-download every file."
+    )
+    parser_get.add_argument(
+        "segments",
+        help="Segment definition input CSV file location.",
+        type=argparse.FileType("r"),
+    )
+    parser_get.add_argument(
+        "out_dir",
+        help="Directory for downloaded audio, created if necessary.",
+        type=_type_dir_or_create,
+    )
+
+    parser_split = subparsers.add_parser(
+        "split",
+        help="Split audio files into segments.",
+    )
+
+    parser_args = parser.parse_args()
+    parser_kwargs = vars(parser_args)
+    try:
+        match parser_kwargs.pop("command"):
+            case "get":
+                get_audio_files(**parser_kwargs)
+            case "split":
+                raise NotImplementedError
+            case _:
+                ...
+    finally:
+        for item_ in parser_kwargs.values():
+            if isinstance(item_, TextIOBase) and item_ not in [sys.stdin, sys.stdout]:
+                item_.close()

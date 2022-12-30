@@ -8,7 +8,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from scipy.io import wavfile
 
-from singing_classifier.etl import AudioSegment, CachedFile, YTAudio
+from singing_classifier.etl import AudioSegment, CachedFile, YTAudio, get_audio_files
 
 
 def _create_sine(
@@ -37,6 +37,19 @@ def fx_test_audio(tmp_path_factory) -> Path:
         wavfile.write(file_, sample_rate, data)
 
     return loc
+
+
+@pytest.fixture(name="segments_path")
+def fx_segments_path(tmp_path):
+    """Returns path for test segment definition file."""
+    content = """name,num,time_start,time_end
+BaW_jenozKc,0,0.0,2.4
+BaW_jenozKc,1,2.8,7.0
+pRnPUCeL76M,0,0.4,2.2
+"""
+    csv_loc = tmp_path / "test.csv"
+    csv_loc.write_text(content)
+    return csv_loc
 
 
 class CacheImpl(CachedFile):
@@ -154,31 +167,23 @@ class TestYTAudio:
 
         assert received == expected
 
-    def test_from_csv(self, tmp_path: Path):
-        """Convert CSV file into list of audio sources."""
-        content = """name,num,time_start,time_end
-0HVjTPqe5I0,0,8.893,17.323
-0HVjTPqe5I0,1,18.053,28.832
-0HVjTPqe5I0,2,39.12,53.974
-0QzJ86rMHzQ,0,7.464,25.834"""
-        csv_loc = tmp_path / "test.csv"
-        csv_loc.write_text(content)
-
-        expected = {
-            YTAudio(
-                "0HVjTPqe5I0",
-                {
-                    0: (8.893, 17.323),
-                    1: (18.053, 28.832),
-                    2: (39.12, 53.974),
-                },
-            ),
-            YTAudio("0QzJ86rMHzQ", {0: (7.464, 25.834)}),
+    @pytest.fixture(name="expected_segments")
+    def fx_expected_segments(self) -> set[YTAudio]:
+        return {
+            YTAudio("BaW_jenozKc", {0: (0.0, 2.4), 1: (2.8, 7.0)}),
+            YTAudio("pRnPUCeL76M", {0: (0.4, 2.2)}),
         }
 
-        received = YTAudio.from_csv(csv_loc)
+    def test_from_csv(self, segments_path: Path, expected_segments: set[YTAudio]):
+        """Convert CSV file into list of audio sources."""
+        received = YTAudio.from_csv(segments_path)
+        assert set(received) == expected_segments
 
-        assert set(received) == expected
+    def test_from_csv_file(self, segments_path: Path, expected_segments: set[YTAudio]):
+        """Test reading open file buffer into segments."""
+        with open(segments_path, "r", encoding="utf-8") as file_:
+            received = YTAudio.from_csv(file_)
+        assert set(received) == expected_segments
 
 
 class TestSegment:
@@ -233,3 +238,19 @@ class TestSegment:
             expected[col] = expected[col].astype("string")
 
         assert_frame_equal(received, expected)
+
+
+@pytest.mark.integration_test
+@pytest.mark.parametrize("n_processes", [1, 3])
+def test_get_audio_files(tmp_path: Path, segments_path: Path, n_processes: int):
+    """Get flow works correctly"""
+    out_dir = tmp_path / "out"
+    summary_path = tmp_path / "summary.csv"
+    get_audio_files(
+        segments_path,
+        out_dir,
+        summary_path,
+        n_processes=n_processes,
+        num_tries=2,
+        retry_delay_seconds=1.5,
+    )
