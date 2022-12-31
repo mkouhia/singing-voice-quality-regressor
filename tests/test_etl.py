@@ -1,5 +1,6 @@
 """Test data extraction, transformation and loading."""
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +9,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from scipy.io import wavfile
 
-from singing_classifier.etl import AudioSegment, CachedFile, YTAudio, get_audio_files
+from singing_classifier.etl import AudioSegment, CachedFile, YTAudio, get_and_split
 
 
 def _create_sine(
@@ -69,6 +70,10 @@ class CacheImpl(CachedFile):
         self._dest.mkdir(parents=True)
         self._dest.touch()
         return self._dest
+
+    @classmethod
+    def summarize(cls, items: Iterable["CacheImpl"]) -> pd.DataFrame:
+        raise NotImplementedError
 
 
 class TestCache:
@@ -227,30 +232,73 @@ class TestSegment:
         received = AudioSegment.summarize(segments)
 
         vals = [
-            ("aa", 0, "tmp/aa_0.m4a"),
-            ("aa", 1, "tmp/aa_1.m4a"),
-            ("ab", 0, "tmp/ab_0.m4a"),
+            ("aa", 0, "tmp/aa_0.m4a", ""),
+            ("aa", 1, "tmp/aa_1.m4a", ""),
+            ("ab", 0, "tmp/ab_0.m4a", ""),
         ]
-        data = [dict(zip(AudioSegment.summary_columns, i)) for i in vals]
+
+        # pylint: disable=protected-access
+        col_names = [i[0] for i in AudioSegment._summary_attrs]
+        data = [dict(zip(col_names, i)) for i in vals]
         expected = pd.DataFrame(data)
 
-        for col in ["tag", "path"]:
+        for col in ["tag", "path", "message"]:
             expected[col] = expected[col].astype("string")
 
         assert_frame_equal(received, expected)
 
 
 @pytest.mark.integration_test
-@pytest.mark.parametrize("n_processes", [1, 3])
-def test_get_audio_files(tmp_path: Path, segments_path: Path, n_processes: int):
-    """Get flow works correctly"""
+def test_get_and_split(tmp_path: Path, segments_path: Path):
+    """Download and split audio files."""
     out_dir = tmp_path / "out"
-    summary_path = tmp_path / "summary.csv"
-    get_audio_files(
-        segments_path,
-        out_dir,
-        summary_path,
-        n_processes=n_processes,
-        num_tries=2,
-        retry_delay_seconds=1.5,
+    raw_dir = tmp_path / "raw"
+    download_summary = tmp_path / "dl_summary.csv"
+    split_summary = tmp_path / "split_summary.csv"
+    get_and_split(
+        segments=segments_path,
+        raw_dir=raw_dir,
+        split_dir=out_dir,
+        download_summary=download_summary,
+        split_summary=split_summary,
+        segment_kwargs={"format_": "opus"},
+        n_processes=1,
+        num_tries=3,
+        retry_delay_seconds=3,
+    )
+
+    expected_raw_files = {raw_dir / i for i in ["BaW_jenozKc.m4a", "pRnPUCeL76M.webm"]}
+    expected_splits = {
+        out_dir / i
+        for i in [
+            "BaW_jenozKc_0.opus",
+            "BaW_jenozKc_1.opus",
+            "pRnPUCeL76M_0.opus",
+        ]
+    }
+
+    expected_dl_lines = {
+        "tag,path,message",
+        f"BaW_jenozKc,{raw_dir}/BaW_jenozKc.m4a,",
+        f"BaW_jenozKc,{raw_dir}/BaW_jenozKc.m4a,",
+        f"pRnPUCeL76M,{raw_dir}/pRnPUCeL76M.webm,",
+        "",
+    }
+    expected_split_lines = {
+        "tag,num,path,message",
+        f"BaW_jenozKc,0,{out_dir}/BaW_jenozKc_0.opus,",
+        f"BaW_jenozKc,1,{out_dir}/BaW_jenozKc_1.opus,",
+        f"pRnPUCeL76M,0,{out_dir}/pRnPUCeL76M_0.opus,",
+        "",
+    }
+
+    assert set(raw_dir.glob("*")) == expected_raw_files
+    assert set(out_dir.glob("*")) == expected_splits
+    assert (
+        set(download_summary.read_text(encoding="utf-8").split("\n"))
+        == expected_dl_lines
+    )
+    assert (
+        set(split_summary.read_text(encoding="utf-8").split("\n"))
+        == expected_split_lines
     )

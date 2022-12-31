@@ -1,16 +1,14 @@
 """Download data files for the SVQTD dataset"""
 
 import argparse
+import itertools
 import multiprocessing
-import queue
 import subprocess
 import sys
-import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from functools import partial
 from io import TextIOBase
-from multiprocessing import Lock, Process, Queue
-from multiprocessing.synchronize import Lock as LockBase
 from os import PathLike
 from pathlib import Path
 
@@ -18,14 +16,23 @@ import numpy as np
 import pandas as pd
 import youtube_dl
 
+from .processing import perform_multiprocess
+
 
 class CachedFile(ABC):
 
     """File, that may be cached logally, or downloaded/produced."""
 
+    _summary_attrs: list[tuple[str, str, str]] = []
+    """List of specifiers, from which summary dataframe is produced.
+
+    Each tuple is (display name, attribute, data type).
+    """
+
     def __init__(self):
         self._dest: Path = None
         self._cache_dir: Path = None
+        self._get_exception_msg: str = ""
 
     @property
     @abstractmethod
@@ -73,10 +80,36 @@ class CachedFile(ABC):
         dest_ = self.dest
         return dest_ is not None and dest_.is_file()
 
+    @classmethod
+    @abstractmethod
+    def summarize(cls, items: Iterable["CachedFile"]) -> pd.DataFrame:
+        """Returns summary dataframe of all cached files."""
+        records = [
+            {
+                att[0]: getattr(item, att[1])
+                if getattr(item, att[1]) is not None
+                else np.nan
+                for att in cls._summary_attrs
+            }
+            for item in items
+        ]
+        if len(records) == 0:
+            return pd.DataFrame(columns=[att[0] for att in cls._summary_attrs])
+        data = pd.DataFrame(records)
+        for att in cls._summary_attrs:
+            data[att[0]] = data[att[0]].astype(att[2])
+        return data
+
 
 class YTAudio(CachedFile):
 
     """YouTube audio file."""
+
+    _summary_attrs = [
+        ("tag", "tag", "string"),
+        ("path", "dest", "string"),
+        ("message", "_get_exception_msg", "string"),
+    ]
 
     def __init__(
         self,
@@ -116,7 +149,10 @@ class YTAudio(CachedFile):
 
     def __repr__(self) -> str:
         return (
-            f"YTAudio({repr(self.tag)}, segment_splits={self.segment_splits}, "
+            f"YTAudio({repr(self.tag)}, "
+            f"segment_splits={self.segment_splits}, "
+            f"cache_dir={self.cache_dir}, "
+            f"dest={self.dest}, "
             f"ydl_opts={self.ydl_opts})"
         )
 
@@ -167,6 +203,7 @@ class YTAudio(CachedFile):
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl_return_code = ydl.download([self.url])
         except youtube_dl.DownloadError as exc:
+            self._get_exception_msg = str(exc)
             raise UserWarning(
                 f"Download failed on {self.url}, {ydl_opts=}; {exc}"
             ) from exc
@@ -191,7 +228,7 @@ class YTAudio(CachedFile):
     @classmethod
     def from_csv(
         cls,
-        source_csv: PathLike,
+        source_csv: PathLike | TextIOBase,
     ) -> list["YTAudio"]:
         """Create group of audio sources from dataframe."""
         data = pd.read_csv(source_csv)[["name", "num", "time_start", "time_end"]]
@@ -211,12 +248,29 @@ class YTAudio(CachedFile):
         )
         return cls(name, dict(segments))
 
+    @classmethod
+    def summarize(cls, items: Iterable["YTAudio"]) -> pd.DataFrame:
+        """Returns summary dataframe of all downloaded audio files.
+
+        Columns are defined in
+        - `tag`: Tag for original audio.
+        - `path`: Path to cached file location on disk.
+        - `message`: Possible error message.
+        """
+        return super().summarize(items)
+
 
 class AudioSegment(CachedFile):
 
     """Audio segment, from YouTube audio."""
 
-    summary_columns = ["tag", "num", "path"]
+    _summary_attrs = [
+        ("tag", "tag", "string"),
+        ("num", "id_", "int"),
+        ("path", "dest", "string"),
+        ("message", "_get_exception_msg", "string"),
+    ]
+
     formats = ["copy", "wav", "flac", "opus", "ogg"]
 
     def __init__(
@@ -354,6 +408,7 @@ class AudioSegment(CachedFile):
         try:
             subprocess.run(command, check=True)
         except subprocess.SubprocessError as err:
+            self._get_exception_msg = str(err)
             raise UserWarning(
                 f"Audio conversion error, command: '{' '.join(command)}'"
             ) from err
@@ -361,148 +416,102 @@ class AudioSegment(CachedFile):
         self._dest = dest
         return self.dest
 
+    @property
+    def tag(self):
+        """Tag of source audio."""
+        return self.source.tag if self.source is not None else None
+
     @classmethod
-    def summarize(cls, segments: Iterable["AudioSegment"]) -> pd.DataFrame:
-        """Returns summary dataframe of all segments.
+    def summarize(cls, items: Iterable["AudioSegment"]) -> pd.DataFrame:
+        """Returns summary dataframe of all audio segments.
 
-        Columns are
-        - `tag`: tag for original audio
-        - `num`: segment ID number
-        - `path`: path to cached file location on disk.
+        Columns are defined in
+        - `tag`: Tag for original audio.
+        - `num`: Segment ID number.
+        - `path`: Path to cached file location on disk.
+        - `message`: Possible error message.
         """
-        items = [
-            {
-                "tag": seg.source.tag if seg.source is not None else np.nan,
-                "num": seg.id_,
-                "path": str(seg.dest) if seg.dest is not None else np.nan,
-            }
-            for seg in segments
-        ]
-        data = pd.DataFrame(items)
-        for col in ["tag", "path"]:
-            data[col] = data[col].astype("string")
-        return data
+        return super().summarize(items)
 
 
-def get_audio_files(
+def get_and_split(
     segments: PathLike | TextIOBase,
-    out_dir: PathLike,
-    summary_path: PathLike | TextIOBase = None,
-    force: bool = False,
+    raw_dir: Path,
+    split_dir: Path,
+    download_summary: Path = None,
+    split_summary: Path = None,
     n_processes: int = 1,
-    num_tries: int = 0,
-    retry_delay_seconds: int = 0,
+    num_tries: int = 1,
+    retry_delay_seconds: float = 5.0,
+    segment_kwargs: dict = None,
+    force_download: bool = False,
+    force_split: bool = False,
 ):
     """Get audio files from YouTube.
 
     Args:
         segments: Segment definition csv file or path to such.
-        out_dir: Directory, where audio files are stored.
-        summary_path: Path or file, where to store summary. If None, do
-          not write summary.
-        force: Force download all files.
+        raw_dir: Directory, where downloaded audio files are stored.
+        split_dir: Directory, where split audio files are stored.
+        download_summary: Path, where to write download summary.
+          If None, do not write a summary.
+        split_summary: Path, where to write split summary. If None, do
+          not write a summary.
         n_processes: Number of parallel download processes.
         num_tries: Number of times to try a failed download, before
           leaving it as failed.
         retry_delay_seconds: Wait time after a failed download before
           a retry.
+        segment_kwargs: Keyword arguments that are directed to
+          `YTAudio.form_segments`.
+        force_download: Force download all files.
+        force_split: Force splitting of files.
     """
-    in_queue = Queue()
-    summary_lock = Lock()
-    for yt_audio in YTAudio.from_csv(segments):
-        in_queue.put((yt_audio, {"num_tries": 0, "prev_time": 0.0}))
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    split_dir.mkdir(parents=True, exist_ok=True)
 
-    if summary_path is not None:
-        _write_row(summary_path, "tag", "path", "error_reason")
+    audio_defs = YTAudio.from_csv(segments)
+    dl_results = perform_multiprocess(
+        partial(_get_audio, cache_dir=raw_dir, force=force_download),
+        audio_defs,
+        n_processes=n_processes,
+        num_tries=num_tries,
+        retry_delay_seconds=retry_delay_seconds,
+        attach_stats=True,
+    )
 
-    processes = []
-    for _ in range(n_processes or 1):
-        proc = AudioDownloadProcess(
-            in_queue,
-            out_dir,
-            summary_path,
-            summary_lock,
-            force,
-            num_tries,
-            retry_delay_seconds,
+    audio_defs = [i[0] for i in dl_results]
+    if download_summary is not None:
+        dl_summary = YTAudio.summarize(audio_defs)
+        dl_summary.to_csv(download_summary, index=False)
+
+    segments = list(
+        itertools.chain.from_iterable(
+            [
+                yt_audio.form_segments(**(segment_kwargs or {}))
+                for yt_audio in audio_defs
+            ]
         )
-        processes.append(proc)
-        proc.start()
+    )
+    split_results = perform_multiprocess(
+        partial(_get_segment, cache_dir=split_dir, force=force_split),
+        segments,
+        n_processes=n_processes,
+        num_tries=1,
+    )
 
-    for proc in processes:
-        proc.join()
-
-
-class AudioDownloadProcess(Process):
-
-    """Process for downloading files in parallel."""
-
-    def __init__(
-        self,
-        in_queue: Queue,
-        out_dir: PathLike,
-        summary_path: PathLike | TextIOBase,
-        summary_lock: LockBase,
-        force: bool,
-        num_tries: int,
-        retry_delay_seconds: float,
-    ) -> None:
-        super().__init__(daemon=True)
-        self.in_queue = in_queue
-        self.out_dir = out_dir
-        self.summary_path = summary_path
-        self.summary_lock = summary_lock
-        self.force = force
-        self.num_tries = num_tries
-        self.retry_delay_seconds = retry_delay_seconds
-
-    def run(self):
-        while True:
-            try:
-                yt_audio, run_kwargs = self.in_queue.get(block=False)
-            except queue.Empty:
-                break
-
-            if (
-                prev_time := run_kwargs["prev_time"]
-            ) > 0.0 and time.time() - prev_time < self.retry_delay_seconds:
-                self.in_queue.put((yt_audio, run_kwargs))
-                return
-
-            try:
-                out_path = yt_audio.get(self.out_dir, self.force)
-                run_kwargs["out_path"] = out_path
-                self._write_summary_row(yt_audio.tag, **run_kwargs)
-            except (youtube_dl.DownloadError, UserWarning) as exc:
-                run_kwargs["num_tries"] += 1
-                run_kwargs["prev_time"] = time.time()
-                run_kwargs["error_reason"] = str(exc)
-                if run_kwargs["num_tries"] == self.num_tries:
-                    self._write_summary_row(yt_audio.tag, **run_kwargs)
-                else:
-                    self.in_queue.put((yt_audio, run_kwargs))
-
-    def _write_summary_row(
-        self, tag: str, out_path: Path, error_reason: str = "", **kwargs
-    ):
-        """Write summary row to out_path, with file lock."""
-        del kwargs  # unused, only sink for extra arguments
-        if self.summary_path is None:
-            return
-        self.summary_lock.acquire()
-        try:
-            _write_row(self.summary_path, tag, out_path, error_reason)
-        finally:
-            self.summary_lock.release()
+    segments = (i[0] for i in split_results)
+    if split_summary is not None:
+        summary_data = AudioSegment.summarize(segments)
+        summary_data.to_csv(split_summary, index=False)
 
 
-def _write_row(summary_path: PathLike | TextIOBase, *args):
-    """Write content row to path or text io."""
-    content = ",".join(str(i) for i in args) + "\n"
-    if isinstance(summary_path, TextIOBase):
-        summary_path.write(content)
-    else:
-        Path(summary_path).write_text(content, encoding="utf-8")
+def _get_audio(yt_audio, *args, **kwargs):
+    return yt_audio.get(*args, **kwargs)
+
+
+def _get_segment(segment, *args, **kwargs):
+    return segment.get(*args, **kwargs)
 
 
 def _type_dir_or_create(dest: str) -> Path:
@@ -517,55 +526,62 @@ def _type_dir_or_create(dest: str) -> Path:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(help="commands", dest="command")
 
     n_cpus = multiprocessing.cpu_count()
-    parser_get = subparsers.add_parser(
-        "get",
-        help="Download audio from YouTube.",
+    parser.add_argument(
+        "--download-summary",
+        help="Download summary csv output location. If not specified, do not produce a summary.",
+        type=Path,
     )
-    parser_get.add_argument(
+    parser.add_argument(
+        "--split-summary",
+        help="Split summary csv output location. If not specified, do not produce a summary.",
+        type=Path,
+    )
+    parser.add_argument(
         "--n-processes",
-        "-n",
         type=int,
         default=n_cpus,
         help=f"Number of parallel download processes. Default: {n_cpus}.",
     )
-    parser_get.add_argument(
-        "--summary-path",
-        "-s",
-        help="Summary csv output location. If not specified, do not produce a summary.",
-        type=argparse.FileType("w"),
+    parser.add_argument(
+        "--num-tries",
+        type=int,
+        default=3,
+        help="Number of times to try a download, before leaving it as failed. Default: 3.",
     )
-    parser_get.add_argument(
-        "--force", action="store_true", help="Re-download every file."
+    parser.add_argument(
+        "--retry_delay_seconds",
+        type=float,
+        default=10.0,
+        help="Minimum wait time in seconds after a failed download, before a retry on the same item. Default: 5",
     )
-    parser_get.add_argument(
+    parser.add_argument(
+        "--force-download", action="store_true", help="Re-download every file."
+    )
+    parser.add_argument(
+        "--force-split", action="store_true", help="Re-split every file."
+    )
+    parser.add_argument(
         "segments",
         help="Segment definition input CSV file location.",
         type=argparse.FileType("r"),
     )
-    parser_get.add_argument(
-        "out_dir",
+    parser.add_argument(
+        "raw_dir",
         help="Directory for downloaded audio, created if necessary.",
         type=_type_dir_or_create,
     )
-
-    parser_split = subparsers.add_parser(
-        "split",
-        help="Split audio files into segments.",
+    parser.add_argument(
+        "split_dir",
+        help="Directory for split audio, created if necessary.",
+        type=_type_dir_or_create,
     )
 
     parser_args = parser.parse_args()
     parser_kwargs = vars(parser_args)
     try:
-        match parser_kwargs.pop("command"):
-            case "get":
-                get_audio_files(**parser_kwargs)
-            case "split":
-                raise NotImplementedError
-            case _:
-                ...
+        get_and_split(**parser_kwargs)
     finally:
         for item_ in parser_kwargs.values():
             if isinstance(item_, TextIOBase) and item_ not in [sys.stdin, sys.stdout]:
