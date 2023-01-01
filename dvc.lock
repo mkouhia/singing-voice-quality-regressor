@@ -17,13 +17,16 @@ stages:
     - path: SVQTD/train.csv
       md5: 908c148326940c6284f976a53991834b
       size: 173476
+    - path: singing_classifier/clean.py
+      md5: 577756b91871bcad836d13459261ca65
+      size: 7199
     outs:
     - path: data/dev_clean.parquet
       md5: 6998244019a34164ee26d49e9cb64484
       size: 62999
     - path: data/segments_clean.parquet
-      md5: 75d8647a54cd539f01aaace088ae923c
-      size: 153598
+      md5: 5991857ad4f3c61c0e6470749292c679
+      size: 87083
     - path: data/test_clean.parquet
       md5: e29ec9f61d5317fa58fcb58047b38dae
       size: 62902

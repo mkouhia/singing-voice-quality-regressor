@@ -85,7 +85,7 @@ def clean_segments(
         and `other_unique_cols`.
     """
     other_unique_cols = list(other_unique_cols) or []
-    data = pd.read_csv(origin)
+    data = pd.read_csv(origin).convert_dtypes()
 
     data[tag_col] = extract_id(data[name_col])
 
@@ -132,7 +132,6 @@ def drop_unused_segments(
         left_on=list(seg_cols),
         right_on=data_cols,
         how="inner",
-        suffixes=["", "_r"],
     )
 
     joined = joined.set_index("prev_index", drop=True)
@@ -195,7 +194,7 @@ def main(
         data_frames.append(data_i)
 
     # Keep only those segments that appear in data files
-    seg = drop_unused_segments(seg, data_frames)
+    seg = drop_unused_segments(seg, *data_frames)
     seg.to_parquet(segments_out)
 
 

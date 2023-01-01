@@ -10,6 +10,7 @@ stages:
     - SVQTD/test.csv
     - SVQTD/train.csv
     - SVQTD/dev.csv
+    - singing_classifier/clean.py
     outs:
     - data/segments_clean.parquet
     - data/test_clean.parquet
