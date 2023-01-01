@@ -69,7 +69,6 @@ class CachedFile(ABC):
             return None
         p = re.compile(self._file_pattern)
         for candidate_path in self.cache_dir.glob("**/*"):
-            print(candidate_path)
             if p.match(str(candidate_path.relative_to(self.cache_dir))):
                 return candidate_path
         return None
