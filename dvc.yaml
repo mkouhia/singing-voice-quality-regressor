@@ -1,0 +1,64 @@
+stages:
+  clean:
+    desc: Clean input dataframes of invalid data
+    cmd: python -m singing_classifier.clean
+      --data SVQTD/test.csv SVQTD/train.csv SVQTD/dev.csv
+      --data-out data/test_clean.parquet data/train_clean.parquet data/dev_clean.parquet
+      -- SVQTD/seg_time_lists.csv data/segments_clean.parquet
+    deps:
+    - SVQTD/seg_time_lists.csv
+    - SVQTD/test.csv
+    - SVQTD/train.csv
+    - SVQTD/dev.csv
+    - singing_classifier/clean.py
+    outs:
+    - data/segments_clean.parquet
+    - data/test_clean.parquet
+    - data/train_clean.parquet
+    - data/dev_clean.parquet
+  etl:
+    desc: YouTube audio extraction, transformation and loading
+    cmd: python -m singing_classifier.etl
+      --download-summary data/etl_audio_summary.parquet
+      --split-summary data/etl_segment_summary.parquet
+      data/segments_clean.parquet data/audio_raw data/audio_segments
+    deps:
+    - data/segments_clean.parquet
+    - singing_classifier/etl.py
+    outs:
+    - data/audio_raw:
+        desc: Folder for audio files extracted from YouTube.
+        cache: false
+        persist: true
+    - data/audio_segments:
+        persist: true
+    - data/etl_audio_summary.parquet
+    - data/etl_segment_summary.parquet
+  filter:
+    foreach:
+      segments:
+        data: data/segments_clean.parquet
+        out: data/segments_filter.parquet
+        num-col: num
+      test:
+        data: data/test_clean.parquet
+        out: data/test_filter.parquet
+        num-col: seg_num
+      train:
+        data: data/train_clean.parquet
+        out: data/train_filter.parquet
+        num-col: seg_num
+      dev:
+        data: data/dev_clean.parquet
+        out: data/dev_filter.parquet
+        num-col: seg_num
+    do:
+      cmd: python -m singing_classifier.filter
+        --num-col ${item.num-col}
+        data/etl_segment_summary.parquet ${item.data} ${item.out}
+      deps:
+      - data/etl_segment_summary.parquet
+      - ${item.data}
+      - singing_classifier/filter.py
+      outs:
+      - ${item.out}

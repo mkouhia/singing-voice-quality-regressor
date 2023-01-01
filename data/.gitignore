@@ -1,0 +1,12 @@
+/segments_clean.parquet
+/test_clean.parquet
+/train_clean.parquet
+/dev_clean.parquet
+/audio_raw
+/audio_segments
+/etl_audio_summary.parquet
+/etl_segment_summary.parquet
+/dev_filter.parquet
+/test_filter.parquet
+/train_filter.parquet
+/segments_filter.parquet
