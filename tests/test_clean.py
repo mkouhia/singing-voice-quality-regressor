@@ -9,6 +9,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 from singing_classifier.clean import (
     clean_data,
     clean_segments,
+    drop_unused_segments,
     ensure_unique,
     extract_id,
 )
@@ -111,10 +112,10 @@ def test_ensure_unique():
         }
     )
     received = ensure_unique(data, columns=["tag", "num"])
-    
+
     print(received)
     print(data)
-    
+
     assert_frame_equal(received, data)
 
 
@@ -130,7 +131,7 @@ def test_ensure_unique_full_duplicates():
     )
     received = ensure_unique(data, columns=["tag", "num"])
     expected = data.drop(data.tail(1).index)
-    
+
     assert_frame_equal(received, expected)
 
 
@@ -161,6 +162,28 @@ def test_clean_segments_incorrect_time(segments_csv: Path, segments: pd.DataFram
     received = clean_segments(segments_csv, drop_tags=["test"])
 
     assert_frame_equal(received, segments)
+
+
+def test_drop_unused_segments():
+    """Segments that are not in data files, are removed."""
+    segments = pd.DataFrame(
+        {
+            "tag": ["abc", "abd", "aaf", "abc"],
+            "num": [0, 0, 4, 1],
+            "time_start": [0.0, 1.700, 0.0, 0.0],
+            "time_end": [13.720, 12.30, 1.0, 13.720],
+        }
+    )
+    data1 = pd.DataFrame({"tag": ["abc", "abc"], "seg_num": [0, 1]})
+    data2 = pd.DataFrame({"tag": ["abd"], "seg_num": [0]})
+
+    received = drop_unused_segments(segments, data1, data2)
+    expected = segments.iloc[[0, 1, 3], :]
+
+    print(received)
+    print(expected)
+
+    assert_frame_equal(received, expected)
 
 
 def test_clean_data(train_csv: Path, segments: pd.DataFrame, train_data: pd.DataFrame):

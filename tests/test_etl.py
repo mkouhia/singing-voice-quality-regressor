@@ -51,10 +51,10 @@ pRnPUCeL76M,0,0.4,2.2
 """
     csv_io = StringIO(content)
     data = pd.read_csv(csv_io)
-    
+
     dest = tmp_path / "segments.parquet"
     data.to_parquet(dest, index=False)
-    
+
     return dest
 
 

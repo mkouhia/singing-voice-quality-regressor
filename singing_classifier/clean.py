@@ -19,26 +19,26 @@ def ensure_unique(
     ignore_cols: Collection[str] = None,
 ) -> pd.DataFrame:
     """Make sure that every row in the input data is unique.
-    
+
     If duplicate keys are found, rows are dropped silently if the whole
     row is equal.
-    
+
     Args:
         data: Input dataframe.
         columns: Names of columns, that represent unique keys for the row.
         ignore_cols: Names of columns, to be ignored in comparison.
-    
+
     Raises:
         UserWarning If such rows are found, where keys are equal and
         other content in the row is not equal
-    
+
     Returns:
         Dataframe with possible duplicate rows removed.
     """
     ignore_cols = ignore_cols or []
     duplicate_idx = data.drop(columns=ignore_cols).duplicated(subset=columns)
     duplicate_rows = data.drop(columns=ignore_cols).duplicated()
-    
+
     # Duplicate indices, that are not whole row matches
     if (duplicate_idx ^ duplicate_rows).any():
         dup_values = (
@@ -47,7 +47,7 @@ def ensure_unique(
             .values.tolist()
         )
         raise UserWarning(f"Data contains duplicate keys: {dup_values}")
-    
+
     # Drop duplicate indices, that are whole row matches
     return data[~duplicate_idx]
 
@@ -88,7 +88,7 @@ def clean_segments(
     data = pd.read_csv(origin)
 
     data[tag_col] = extract_id(data[name_col])
-    
+
     for col_small, col_large in ensure_order:
         data = data[data[col_small] < data[col_large]]
 
@@ -100,6 +100,45 @@ def clean_segments(
         data = data[~data[tag_col].isin(drop_tags)]
 
     return ensure_unique(data, columns=key_cols, ignore_cols=[name_col])
+
+
+def drop_unused_segments(
+    segments: pd.DataFrame,
+    *data_frames: pd.DataFrame,
+    seg_cols: Sequence[str] = ("tag", "num"),
+    data_cols: Sequence[str] = ("tag", "seg_num"),
+) -> pd.DataFrame:
+    """Remove segment rows, that are not in any data frames.
+
+    Args:
+        segments: Original segment definition dataframe.
+        *data_frames: Data frames, from which to find used segments.
+        seg_cols: Columns, which to join from segments
+        data_cols: Columns, which to join from data.
+
+    Returns:
+        Copy of segments, with unused rows removed.
+    """
+    data_cols = list(data_cols) if data_cols is not None else []
+    all_used = pd.concat(data_frames, axis=0)[data_cols]
+
+    segments = segments.copy()
+    prev_idx_name = segments.index.name
+    segments["prev_index"] = segments.index
+
+    joined = pd.merge(
+        segments,
+        all_used,
+        left_on=list(seg_cols),
+        right_on=data_cols,
+        how="inner",
+        suffixes=["", "_r"],
+    )
+
+    joined = joined.set_index("prev_index", drop=True)
+    joined.index.name = prev_idx_name
+
+    return joined.drop(columns=[i for i in data_cols if i not in seg_cols])
 
 
 def clean_data(
@@ -148,12 +187,17 @@ def main(
 ):
     """Clean and save segments and additional data."""
     seg = clean_segments(segments)
-    seg.to_parquet(segments_out)
 
+    data_frames = []
     for data_, out_ in zip(data, data_out):
         data_i = clean_data(data_, seg)
         data_i.to_parquet(out_)
-        
+        data_frames.append(data_i)
+
+    # Keep only those segments that appear in data files
+    seg = drop_unused_segments(seg, data_frames)
+    seg.to_parquet(segments_out)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -184,5 +228,5 @@ if __name__ == "__main__":
             f"Data length {len(args.data)} and data-out length "
             f"{len(args.data_out)} do not match!"
         )
-    
+
     main(**vars(args))
