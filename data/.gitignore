@@ -2,3 +2,7 @@
 /test_clean.parquet
 /train_clean.parquet
 /dev_clean.parquet
+/audio_raw
+/audio_segments
+/etl_audio_summary.parquet
+/etl_segment_summary.parquet

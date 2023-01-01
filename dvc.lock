@@ -18,8 +18,8 @@ stages:
       md5: 908c148326940c6284f976a53991834b
       size: 173476
     - path: singing_classifier/clean.py
-      md5: cd3554a21963f263689dc6a8d717af65
-      size: 7745
+      md5: f873d262647eb953e75a7da8efdf5dbc
+      size: 7741
     outs:
     - path: data/dev_clean.parquet
       md5: 09d3c97c567edc4c2e8c885fe2a85fab
@@ -33,3 +33,29 @@ stages:
     - path: data/train_clean.parquet
       md5: 157fdf8009127a267ae74e27015c6b15
       size: 28994
+  etl:
+    cmd: python -m singing_classifier.etl --download-summary data/etl_audio_summary.parquet
+      --split-summary data/etl_segment_summary.parquet data/segments_clean.parquet
+      data/audio_raw data/audio_segments
+    deps:
+    - path: data/segments_clean.parquet
+      md5: 5991857ad4f3c61c0e6470749292c679
+      size: 87083
+    - path: singing_classifier/etl.py
+      md5: cb0be11d57a8f5ae4747cf90e71c91d8
+      size: 18539
+    outs:
+    - path: data/audio_raw
+      md5: 601d9f2c9f23efc7b5d127f166ee5521.dir
+      size: 1027731597
+      nfiles: 242
+    - path: data/audio_segments
+      md5: bf5d7e47f617e627492a75511d06fb82.dir
+      size: 821987034
+      nfiles: 3594
+    - path: data/etl_audio_summary.parquet
+      md5: 739065845064744af1f8dd4783a447d1
+      size: 10961
+    - path: data/etl_segment_summary.parquet
+      md5: 4f4dbf84436b767f2d5f57c3a28e46f2
+      size: 47879

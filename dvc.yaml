@@ -16,3 +16,21 @@ stages:
     - data/test_clean.parquet
     - data/train_clean.parquet
     - data/dev_clean.parquet
+  etl:
+    desc: YouTube audio extraction, transformation and loading
+    cmd: python -m singing_classifier.etl
+      --download-summary data/etl_audio_summary.parquet
+      --split-summary data/etl_segment_summary.parquet
+      data/segments_clean.parquet data/audio_raw data/audio_segments
+    deps:
+    - data/segments_clean.parquet
+    - singing_classifier/etl.py
+    outs:
+    - data/audio_raw:
+        desc: Folder for audio files extracted from YouTube.
+        cache: false
+        persist: true
+    - data/audio_segments:
+        persist: true
+    - data/etl_audio_summary.parquet
+    - data/etl_segment_summary.parquet

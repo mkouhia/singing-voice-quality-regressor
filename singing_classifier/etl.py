@@ -38,7 +38,7 @@ class CachedFile(ABC):
     @abstractmethod
     def _file_pattern(self) -> str:
         """Returns regex expression with which to match file name in cache dir."""
-        
+
     @abstractmethod
     def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Get file, store to cache_dir.
@@ -88,7 +88,7 @@ class CachedFile(ABC):
     @abstractmethod
     def summarize(cls, items: Iterable["CachedFile"]) -> pd.DataFrame:
         """Returns summary dataframe of all cached files."""
-        records = [
+        records = (
             {
                 att[0]: getattr(item, att[1])
                 if getattr(item, att[1]) is not None
@@ -96,10 +96,8 @@ class CachedFile(ABC):
                 for att in cls._summary_attrs
             }
             for item in items
-        ]
-        if len(records) == 0:
-            return pd.DataFrame(columns=[att[0] for att in cls._summary_attrs])
-        data = pd.DataFrame(records)
+        )
+        data = pd.DataFrame(records, columns=[att[0] for att in cls._summary_attrs])
         for att in cls._summary_attrs:
             data[att[0]] = data[att[0]].astype(att[2])
         return data
@@ -162,7 +160,7 @@ class YTAudio(CachedFile):
 
     @property
     def _file_pattern(self) -> str:
-        return fr"{self.tag}\.(?!part$)[^.]*$"
+        return rf"{self.tag}\.(?!part$)[^.]*$"
 
     @property
     def url(self) -> str:
@@ -354,7 +352,7 @@ class AudioSegment(CachedFile):
 
     @property
     def _file_pattern(self) -> str:
-        return fr"{self.source.tag}_{self.id_}\..*"
+        return rf"{self.source.tag}_{self.id_}\..*"
 
     def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Split audio segment from source file.
