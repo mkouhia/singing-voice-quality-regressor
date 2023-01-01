@@ -1,6 +1,7 @@
 """Test data extraction, transformation and loading."""
 
 from collections.abc import Iterable
+from io import StringIO
 from pathlib import Path
 
 import numpy as np
@@ -48,9 +49,13 @@ BaW_jenozKc,0,0.0,2.4
 BaW_jenozKc,1,2.8,7.0
 pRnPUCeL76M,0,0.4,2.2
 """
-    csv_loc = tmp_path / "test.csv"
-    csv_loc.write_text(content)
-    return csv_loc
+    csv_io = StringIO(content)
+    data = pd.read_csv(csv_io)
+    
+    dest = tmp_path / "segments.parquet"
+    data.to_parquet(dest, index=False)
+    
+    return dest
 
 
 class CacheImpl(CachedFile):
@@ -172,23 +177,14 @@ class TestYTAudio:
 
         assert received == expected
 
-    @pytest.fixture(name="expected_segments")
-    def fx_expected_segments(self) -> set[YTAudio]:
-        return {
+    def test_from_parquet(self, segments_path: Path):
+        """Convert CSV file into list of audio sources."""
+        received = YTAudio.from_parquet(segments_path)
+        expected = {
             YTAudio("BaW_jenozKc", {0: (0.0, 2.4), 1: (2.8, 7.0)}),
             YTAudio("pRnPUCeL76M", {0: (0.4, 2.2)}),
         }
-
-    def test_from_csv(self, segments_path: Path, expected_segments: set[YTAudio]):
-        """Convert CSV file into list of audio sources."""
-        received = YTAudio.from_csv(segments_path)
-        assert set(received) == expected_segments
-
-    def test_from_csv_file(self, segments_path: Path, expected_segments: set[YTAudio]):
-        """Test reading open file buffer into segments."""
-        with open(segments_path, "r", encoding="utf-8") as file_:
-            received = YTAudio.from_csv(file_)
-        assert set(received) == expected_segments
+        assert set(received) == expected
 
 
 class TestSegment:

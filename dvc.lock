@@ -1,0 +1,32 @@
+schema: '2.0'
+stages:
+  clean:
+    cmd: python -m singing_classifier.clean --data SVQTD/test.csv SVQTD/train.csv
+      SVQTD/dev.csv --data-out data/test_clean.parquet data/train_clean.parquet data/dev_clean.parquet
+      -- SVQTD/seg_time_lists.csv data/segments_clean.parquet
+    deps:
+    - path: SVQTD/dev.csv
+      md5: ce209aba6b1bb67709e3ca32d5be3ace
+      size: 55116
+    - path: SVQTD/seg_time_lists.csv
+      md5: e37b920502300aa43fa26e242c35d350
+      size: 283800
+    - path: SVQTD/test.csv
+      md5: 39969a96a0df21f2a59eb5c0feea043f
+      size: 55115
+    - path: SVQTD/train.csv
+      md5: 908c148326940c6284f976a53991834b
+      size: 173476
+    outs:
+    - path: data/dev_clean.parquet
+      md5: 6998244019a34164ee26d49e9cb64484
+      size: 62999
+    - path: data/segments_clean.parquet
+      md5: 75d8647a54cd539f01aaace088ae923c
+      size: 153598
+    - path: data/test_clean.parquet
+      md5: e29ec9f61d5317fa58fcb58047b38dae
+      size: 62902
+    - path: data/train_clean.parquet
+      md5: 326d24110bae428669a5fbfe97ed0c0b
+      size: 67630

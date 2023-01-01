@@ -226,12 +226,12 @@ class YTAudio(CachedFile):
         ]
 
     @classmethod
-    def from_csv(
+    def from_parquet(
         cls,
         source_csv: PathLike | TextIOBase,
     ) -> list["YTAudio"]:
         """Create group of audio sources from dataframe."""
-        data = pd.read_csv(source_csv)[["name", "num", "time_start", "time_end"]]
+        data = pd.read_parquet(source_csv)[["name", "num", "time_start", "time_end"]]
 
         grouped = data.groupby("name")
         return [
@@ -435,7 +435,7 @@ class AudioSegment(CachedFile):
 
 
 def get_and_split(
-    segments: PathLike | TextIOBase,
+    segments: Path,
     raw_dir: Path,
     split_dir: Path,
     download_summary: Path = None,
@@ -450,7 +450,7 @@ def get_and_split(
     """Get audio files from YouTube.
 
     Args:
-        segments: Segment definition csv file or path to such.
+        segments: Path to segment definition Parquet file.
         raw_dir: Directory, where downloaded audio files are stored.
         split_dir: Directory, where split audio files are stored.
         download_summary: Path, where to write download summary.
@@ -470,7 +470,7 @@ def get_and_split(
     raw_dir.mkdir(parents=True, exist_ok=True)
     split_dir.mkdir(parents=True, exist_ok=True)
 
-    audio_defs = YTAudio.from_csv(segments)
+    audio_defs = YTAudio.from_parquet(segments)
     dl_results = perform_multiprocess(
         partial(_get_audio, cache_dir=raw_dir, force=force_download),
         audio_defs,
@@ -564,8 +564,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "segments",
-        help="Segment definition input CSV file location.",
-        type=argparse.FileType("r"),
+        help="Segment definition input Parquet file location.",
+        type=Path,
     )
     parser.add_argument(
         "raw_dir",
@@ -580,9 +580,4 @@ if __name__ == "__main__":
 
     parser_args = parser.parse_args()
     parser_kwargs = vars(parser_args)
-    try:
-        get_and_split(**parser_kwargs)
-    finally:
-        for item_ in parser_kwargs.values():
-            if isinstance(item_, TextIOBase) and item_ not in [sys.stdin, sys.stdout]:
-                item_.close()
+    get_and_split(**parser_kwargs)

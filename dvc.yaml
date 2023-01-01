@@ -1,0 +1,17 @@
+stages:
+  clean:
+    desc: Clean input dataframes of invalid data
+    cmd: python -m singing_classifier.clean
+      --data SVQTD/test.csv SVQTD/train.csv SVQTD/dev.csv
+      --data-out data/test_clean.parquet data/train_clean.parquet data/dev_clean.parquet
+      -- SVQTD/seg_time_lists.csv data/segments_clean.parquet
+    deps:
+    - SVQTD/seg_time_lists.csv
+    - SVQTD/test.csv
+    - SVQTD/train.csv
+    - SVQTD/dev.csv
+    outs:
+    - data/segments_clean.parquet
+    - data/test_clean.parquet
+    - data/train_clean.parquet
+    - data/dev_clean.parquet
