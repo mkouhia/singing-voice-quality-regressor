@@ -5,7 +5,7 @@ import itertools
 import multiprocessing
 import subprocess
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from functools import partial
 from io import TextIOBase
 from os import PathLike
@@ -150,8 +150,8 @@ class YTAudio(CachedFile):
         return (
             f"YTAudio({repr(self.tag)}, "
             f"segment_splits={self.segment_splits}, "
-            f"cache_dir={self.cache_dir}, "
-            f"dest={self.dest}, "
+            f"_cache_dir={self._cache_dir}, "
+            f"_dest={self._dest}, "
             f"ydl_opts={self.ydl_opts})"
         )
 
@@ -228,21 +228,25 @@ class YTAudio(CachedFile):
     def from_parquet(
         cls,
         source_csv: PathLike | TextIOBase,
+        cols: Sequence[str] = ("tag", "num", "time_start", "time_end"),
     ) -> list["YTAudio"]:
         """Create group of audio sources from dataframe."""
-        data = pd.read_parquet(source_csv)[["name", "num", "time_start", "time_end"]]
+        data = pd.read_parquet(source_csv)[list(cols)]
 
-        grouped = data.groupby("name")
+        grouped = data.groupby(cols[0])
         return [
-            cls._grouped_df_to_cls(group_name, grouped.get_group(group_name))
+            cls._grouped_df_to_cls(group_name, grouped.get_group(group_name), cols)
             for group_name in grouped.groups
         ]
 
     @classmethod
-    def _grouped_df_to_cls(cls, name: str, data: pd.DataFrame) -> "YTAudio":
+    def _grouped_df_to_cls(
+        cls, name: str, data: pd.DataFrame, cols: Sequence[str]
+    ) -> "YTAudio":
         segments = (
-            data.sort_values(by="num", ascending=True)
-            .apply(lambda r: (r["num"], (r["time_start"], r["time_end"])), axis=1)
+            data.drop(columns=[cols[0]], errors="ignore")
+            .sort_values(by=cols[1], ascending=True)
+            .apply(lambda r: (int(r[cols[1]]), (r[cols[2]], r[cols[3]])), axis=1)
             .tolist()
         )
         return cls(name, dict(segments))

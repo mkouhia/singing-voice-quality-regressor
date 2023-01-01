@@ -44,7 +44,7 @@ def fx_test_audio(tmp_path_factory) -> Path:
 @pytest.fixture(name="segments_path")
 def fx_segments_path(tmp_path):
     """Returns path for test segment definition file."""
-    content = """name,num,time_start,time_end
+    content = """tag,num,time_start,time_end
 BaW_jenozKc,0,0.0,2.4
 BaW_jenozKc,1,2.8,7.0
 pRnPUCeL76M,0,0.4,2.2
@@ -240,6 +240,7 @@ class TestSegment:
 
         for col in ["tag", "path", "message"]:
             expected[col] = expected[col].astype("string")
+        expected["num"] = expected["num"].astype("Int64")
 
         assert_frame_equal(received, expected)
 
