@@ -63,8 +63,8 @@ class CacheImpl(CachedFile):
     """Test implementation for testing shared cache methods."""
 
     @property
-    def _file_glob(self):
-        return "subdir/test_id.*"
+    def _file_pattern(self):
+        return r"subdir/test_id\..*$"
 
     def get(self, cache_dir: Path = None, force=False) -> Path:
         super().get(cache_dir, force)

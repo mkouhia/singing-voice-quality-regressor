@@ -3,6 +3,7 @@
 import argparse
 import itertools
 import multiprocessing
+import re
 import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
@@ -35,9 +36,9 @@ class CachedFile(ABC):
 
     @property
     @abstractmethod
-    def _file_glob(self) -> str:
-        """Returns `glob` expression with which to find file in cache dir"""
-
+    def _file_pattern(self) -> str:
+        """Returns regex expression with which to match file name in cache dir."""
+        
     @abstractmethod
     def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Get file, store to cache_dir.
@@ -66,7 +67,12 @@ class CachedFile(ABC):
             return self._dest
         if self.cache_dir is None:
             return None
-        return next(self.cache_dir.glob(self._file_glob), None)
+        p = re.compile(self._file_pattern)
+        for candidate_path in self.cache_dir.glob("**/*"):
+            print(candidate_path)
+            if p.match(str(candidate_path.relative_to(self.cache_dir))):
+                return candidate_path
+        return None
 
     @dest.setter
     def dest(self, value: Path):
@@ -156,8 +162,8 @@ class YTAudio(CachedFile):
         )
 
     @property
-    def _file_glob(self) -> str:
-        return f"{self.tag}.*"
+    def _file_pattern(self) -> str:
+        return fr"{self.tag}\.(?!part$)[^.]*$"
 
     @property
     def url(self) -> str:
@@ -348,8 +354,8 @@ class AudioSegment(CachedFile):
         )
 
     @property
-    def _file_glob(self) -> str:
-        return f"{self.source.tag}_{self.id_}.*"
+    def _file_pattern(self) -> str:
+        return fr"{self.source.tag}_{self.id_}\..*"
 
     def get(self, cache_dir: PathLike = None, force=False) -> Path:
         """Split audio segment from source file.
