@@ -34,3 +34,31 @@ stages:
         persist: true
     - data/etl_audio_summary.parquet
     - data/etl_segment_summary.parquet
+  filter:
+    foreach:
+      segments:
+        data: data/segments_clean.parquet
+        out: data/segments_filter.parquet
+        num-col: num
+      test:
+        data: data/test_clean.parquet
+        out: data/test_filter.parquet
+        num-col: seg_num
+      train:
+        data: data/train_clean.parquet
+        out: data/train_filter.parquet
+        num-col: seg_num
+      dev:
+        data: data/dev_clean.parquet
+        out: data/dev_filter.parquet
+        num-col: seg_num
+    do:
+      cmd: python -m singing_classifier.filter
+        --num-col ${item.num-col}
+        data/etl_segment_summary.parquet ${item.data} ${item.out}
+      deps:
+      - data/etl_segment_summary.parquet
+      - ${item.data}
+      - singing_classifier/filter.py
+      outs:
+      - ${item.out}

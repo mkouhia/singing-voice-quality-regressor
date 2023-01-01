@@ -6,3 +6,7 @@
 /audio_segments
 /etl_audio_summary.parquet
 /etl_segment_summary.parquet
+/dev_filter.parquet
+/test_filter.parquet
+/train_filter.parquet
+/segments_filter.parquet

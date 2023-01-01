@@ -42,8 +42,8 @@ stages:
       md5: 5991857ad4f3c61c0e6470749292c679
       size: 87083
     - path: singing_classifier/etl.py
-      md5: cb0be11d57a8f5ae4747cf90e71c91d8
-      size: 18539
+      md5: 75936c2aa8fb789edc02f9c53d8528b9
+      size: 18531
     outs:
     - path: data/audio_raw
       md5: 601d9f2c9f23efc7b5d127f166ee5521.dir
@@ -54,8 +54,76 @@ stages:
       size: 821987034
       nfiles: 3594
     - path: data/etl_audio_summary.parquet
-      md5: 739065845064744af1f8dd4783a447d1
-      size: 10961
+      md5: dcaf5e3f85c41a3e3e96efb77bbf41e2
+      size: 10958
     - path: data/etl_segment_summary.parquet
-      md5: 4f4dbf84436b767f2d5f57c3a28e46f2
-      size: 47879
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+  filter@dev:
+    cmd: python -m singing_classifier.filter --num-col seg_num data/etl_segment_summary.parquet
+      data/dev_clean.parquet data/dev_filter.parquet
+    deps:
+    - path: data/dev_clean.parquet
+      md5: 09d3c97c567edc4c2e8c885fe2a85fab
+      size: 17034
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: singing_classifier/filter.py
+      md5: c095f11db114c7032e861d8804b7ea26
+      size: 1544
+    outs:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+  filter@test:
+    cmd: python -m singing_classifier.filter --num-col seg_num data/etl_segment_summary.parquet
+      data/test_clean.parquet data/test_filter.parquet
+    deps:
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/test_clean.parquet
+      md5: 9fb38c5d41f618a24934a8f49ccd3709
+      size: 16921
+    - path: singing_classifier/filter.py
+      md5: c095f11db114c7032e861d8804b7ea26
+      size: 1544
+    outs:
+    - path: data/test_filter.parquet
+      md5: 917d1a061a411eb360e63e0cf482c770
+      size: 16286
+  filter@train:
+    cmd: python -m singing_classifier.filter --num-col seg_num data/etl_segment_summary.parquet
+      data/train_clean.parquet data/train_filter.parquet
+    deps:
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_clean.parquet
+      md5: 157fdf8009127a267ae74e27015c6b15
+      size: 28994
+    - path: singing_classifier/filter.py
+      md5: c095f11db114c7032e861d8804b7ea26
+      size: 1544
+    outs:
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+  filter@segments:
+    cmd: python -m singing_classifier.filter --num-col num data/etl_segment_summary.parquet
+      data/segments_clean.parquet data/segments_filter.parquet
+    deps:
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/segments_clean.parquet
+      md5: 5991857ad4f3c61c0e6470749292c679
+      size: 87083
+    - path: singing_classifier/filter.py
+      md5: c095f11db114c7032e861d8804b7ea26
+      size: 1544
+    outs:
+    - path: data/segments_filter.parquet
+      md5: 8205b0c92512a50853319fe97362f6f3
+      size: 78749
