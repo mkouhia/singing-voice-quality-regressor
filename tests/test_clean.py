@@ -45,7 +45,7 @@ def fx_segments() -> pd.DataFrame:
             "time_end": [32.272, 44.001, 9.287],
         },
         index=[1, 2, 3],
-    )
+    ).convert_dtypes()
 
 
 @pytest.fixture(name="train_csv", scope="module")
@@ -113,9 +113,6 @@ def test_ensure_unique():
     )
     received = ensure_unique(data, columns=["tag", "num"])
 
-    print(received)
-    print(data)
-
     assert_frame_equal(received, data)
 
 
@@ -135,7 +132,7 @@ def test_ensure_unique_full_duplicates():
     assert_frame_equal(received, expected)
 
 
-def test_ensure_unique_fail(segments: pd.DataFrame):
+def test_ensure_unique_fail():
     """On non-unique values, UserWarning is raised."""
     data = pd.DataFrame(
         {
@@ -179,9 +176,6 @@ def test_drop_unused_segments():
 
     received = drop_unused_segments(segments, data1, data2)
     expected = segments.iloc[[0, 1, 3], :]
-
-    print(received)
-    print(expected)
 
     assert_frame_equal(received, expected)
 

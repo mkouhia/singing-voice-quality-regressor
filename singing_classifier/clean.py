@@ -147,6 +147,7 @@ def clean_data(
     segments_join_cols: Sequence[str] = ("name", "num"),
     drop_cols: Sequence[str] = None,
     tag_col: str = "tag",
+    rename_cols: dict = None,
 ) -> pd.DataFrame:
     """Clean data file, given known segments.
 
@@ -158,6 +159,7 @@ def clean_data(
         origin_join_cols: Column names on data, join keys.
         segments_join_cols: Column names on `segments`, join keys.
         tag_col: Column name to merge from segments.
+        rename_cols: Mapping of original names to new names.
 
     Returns:
         Cleaned data, with corrected data types, included
@@ -167,15 +169,27 @@ def clean_data(
     segments_join_cols = list(segments_join_cols)
     origin_join_cols = list(origin_join_cols)
     drop_cols = list(drop_cols) if drop_cols is not None else []
-    joined = pd.merge(
-        left=segments[[tag_col] + segments_join_cols],
-        right=data,
-        left_on=segments_join_cols,
-        right_on=origin_join_cols,
-        how="left",
-    )
 
-    return joined.drop(columns=segments_join_cols + list(drop_cols)).convert_dtypes()
+    data = data.copy()
+    if rename_cols is not None:
+        data = data.rename(columns=rename_cols)
+
+    prev_idx_name = data.index.name
+    data["prev_index"] = data.index
+
+    joined = pd.merge(
+        left=data,
+        right=segments[[tag_col] + segments_join_cols],
+        left_on=origin_join_cols,
+        right_on=segments_join_cols,
+        how="inner",
+    )
+    joined = joined.set_index("prev_index", drop=True)
+    joined.index.name = prev_idx_name
+
+    joined = joined.drop(columns=segments_join_cols + list(drop_cols))
+    joined.insert(0, "tag", joined.pop("tag"))
+    return joined.convert_dtypes()
 
 
 def main(
@@ -189,7 +203,12 @@ def main(
 
     data_frames = []
     for data_, out_ in zip(data, data_out):
-        data_i = clean_data(data_, seg)
+        data_i = clean_data(
+            data_,
+            seg,
+            drop_cols=["Link"],
+            rename_cols={"Openess": "Open"},
+        )
         data_i.to_parquet(out_)
         data_frames.append(data_i)
 

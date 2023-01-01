@@ -18,18 +18,18 @@ stages:
       md5: 908c148326940c6284f976a53991834b
       size: 173476
     - path: singing_classifier/clean.py
-      md5: 577756b91871bcad836d13459261ca65
-      size: 7199
+      md5: cd3554a21963f263689dc6a8d717af65
+      size: 7745
     outs:
     - path: data/dev_clean.parquet
-      md5: 6998244019a34164ee26d49e9cb64484
-      size: 62999
+      md5: 09d3c97c567edc4c2e8c885fe2a85fab
+      size: 17034
     - path: data/segments_clean.parquet
       md5: 5991857ad4f3c61c0e6470749292c679
       size: 87083
     - path: data/test_clean.parquet
-      md5: e29ec9f61d5317fa58fcb58047b38dae
-      size: 62902
+      md5: 9fb38c5d41f618a24934a8f49ccd3709
+      size: 16921
     - path: data/train_clean.parquet
-      md5: 326d24110bae428669a5fbfe97ed0c0b
-      size: 67630
+      md5: 157fdf8009127a267ae74e27015c6b15
+      size: 28994

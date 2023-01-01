@@ -4,7 +4,6 @@ import argparse
 import itertools
 import multiprocessing
 import subprocess
-import sys
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from functools import partial
