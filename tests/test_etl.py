@@ -273,28 +273,31 @@ def test_get_and_split(tmp_path: Path, segments_path: Path):
         ]
     }
 
-    expected_dl_lines = {
-        "tag,path,message",
-        f"BaW_jenozKc,{raw_dir}/BaW_jenozKc.m4a,",
-        f"BaW_jenozKc,{raw_dir}/BaW_jenozKc.m4a,",
-        f"pRnPUCeL76M,{raw_dir}/pRnPUCeL76M.webm,",
-        "",
-    }
-    expected_split_lines = {
-        "tag,num,path,message",
-        f"BaW_jenozKc,0,{out_dir}/BaW_jenozKc_0.opus,",
-        f"BaW_jenozKc,1,{out_dir}/BaW_jenozKc_1.opus,",
-        f"pRnPUCeL76M,0,{out_dir}/pRnPUCeL76M_0.opus,",
-        "",
-    }
+    expected_dl_content = f"""tag,path,message
+BaW_jenozKc,{raw_dir}/BaW_jenozKc.m4a,
+pRnPUCeL76M,{raw_dir}/pRnPUCeL76M.webm,
+"""
+    csv_io = StringIO(expected_dl_content)
+    expected_dl_data = pd.read_csv(csv_io).fillna("").convert_dtypes()
+
+    expected_split_content = f"""tag,num,path,message
+BaW_jenozKc,0,{out_dir}/BaW_jenozKc_0.opus,
+BaW_jenozKc,1,{out_dir}/BaW_jenozKc_1.opus,
+pRnPUCeL76M,0,{out_dir}/pRnPUCeL76M_0.opus,
+"""
+    csv_io = StringIO(expected_split_content)
+    expected_split_data = pd.read_csv(csv_io).fillna("").convert_dtypes()
+
+    received_dl_summary = (
+        pd.read_parquet(download_summary).reset_index(drop=True).sort_values(by=["tag"])
+    )
+    received_split_summary = (
+        pd.read_parquet(split_summary)
+        .reset_index(drop=True)
+        .sort_values(by=["tag", "num"])
+    )
 
     assert set(raw_dir.glob("*")) == expected_raw_files
     assert set(out_dir.glob("*")) == expected_splits
-    assert (
-        set(download_summary.read_text(encoding="utf-8").split("\n"))
-        == expected_dl_lines
-    )
-    assert (
-        set(split_summary.read_text(encoding="utf-8").split("\n"))
-        == expected_split_lines
-    )
+    assert_frame_equal(received_dl_summary, expected_dl_data)
+    assert_frame_equal(received_split_summary, expected_split_data)

@@ -265,7 +265,7 @@ class AudioSegment(CachedFile):
 
     _summary_attrs = [
         ("tag", "tag", "string"),
-        ("num", "id_", "int"),
+        ("num", "id_", "Int64"),
         ("path", "dest", "string"),
         ("message", "_get_exception_msg", "string"),
     ]
@@ -452,10 +452,10 @@ def get_and_split(
         segments: Path to segment definition Parquet file.
         raw_dir: Directory, where downloaded audio files are stored.
         split_dir: Directory, where split audio files are stored.
-        download_summary: Path, where to write download summary.
+        download_summary: Path, where to write download summary Parquet
+          file. If None, do not write a summary.
+        split_summary: Path, where to write split summary Parquet file.
           If None, do not write a summary.
-        split_summary: Path, where to write split summary. If None, do
-          not write a summary.
         n_processes: Number of parallel download processes.
         num_tries: Number of times to try a failed download, before
           leaving it as failed.
@@ -482,7 +482,7 @@ def get_and_split(
     audio_defs = [i[0] for i in dl_results]
     if download_summary is not None:
         dl_summary = YTAudio.summarize(audio_defs)
-        dl_summary.to_csv(download_summary, index=False)
+        dl_summary.to_parquet(download_summary)
 
     segments = list(
         itertools.chain.from_iterable(
@@ -502,7 +502,7 @@ def get_and_split(
     segments = (i[0] for i in split_results)
     if split_summary is not None:
         summary_data = AudioSegment.summarize(segments)
-        summary_data.to_csv(split_summary, index=False)
+        summary_data.to_parquet(split_summary)
 
 
 def _get_audio(yt_audio, *args, **kwargs):
@@ -529,12 +529,12 @@ if __name__ == "__main__":
     n_cpus = multiprocessing.cpu_count()
     parser.add_argument(
         "--download-summary",
-        help="Download summary csv output location. If not specified, do not produce a summary.",
+        help="Download summary Parquet output location. If not specified, do not produce a summary.",
         type=Path,
     )
     parser.add_argument(
         "--split-summary",
-        help="Split summary csv output location. If not specified, do not produce a summary.",
+        help="Split summary Parquet output location. If not specified, do not produce a summary.",
         type=Path,
     )
     parser.add_argument(
