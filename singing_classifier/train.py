@@ -7,7 +7,8 @@ import pandas as pd
 from fastai.data.block import CategoryBlock, DataBlock
 from fastai.data.transforms import ColReader, ColSplitter
 from fastai.metrics import RocAuc, RocAucBinary, accuracy
-from fastai.vision.learner import Learner, vision_learner
+from fastai.vision.all import vision_learner
+from fastai.vision.learner import Learner
 from fastai.vision.models import resnet18
 from fastaudio.augment.preprocess import RemoveSilence, Resample
 from fastaudio.augment.signal import DownmixMono, ResizeSignal
