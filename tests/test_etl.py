@@ -4,40 +4,20 @@ from collections.abc import Iterable
 from io import StringIO
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from scipy.io import wavfile
 
 from singing_classifier.etl import AudioSegment, CachedFile, YTAudio, get_and_split
-
-
-def _create_sine(
-    freq: float,
-    length: float,
-    sample_rate: int,
-    start_phase: int = 0.0,
-) -> np.ndarray[np.int16]:
-    """Returns sine wave signal in 16 bit int format.
-
-    Credit: https://docs.scipy.org/doc/scipy/reference/generated/scipy.io.wavfile.write.html
-    """
-    time = np.linspace(0.0, length, int(sample_rate * length))
-    amplitude = np.iinfo(np.int16).max
-    return (amplitude * np.sin(2 * np.pi * freq * time + start_phase)).astype(np.int16)
+from .util import create_wavfile_at
 
 
 @pytest.fixture(name="audio_file", scope="module")
 def fx_test_audio(tmp_path_factory) -> Path:
     """Create test audio file on disk, return its location."""
     sample_rate = 44100
-    data = _create_sine(freq=440.0, length=2.0, sample_rate=sample_rate)
-
     loc = tmp_path_factory.mktemp("data") / "test_audio.wav"
-    with open(loc, "wb") as file_:
-        wavfile.write(file_, sample_rate, data)
-
+    create_wavfile_at(loc, freq=440.0, length=2.0, sample_rate=sample_rate)
     return loc
 
 

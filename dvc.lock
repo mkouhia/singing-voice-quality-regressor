@@ -70,8 +70,8 @@ stages:
       md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
       size: 47919
     - path: singing_classifier/filter.py
-      md5: c095f11db114c7032e861d8804b7ea26
-      size: 1544
+      md5: 5528e63da544cbe3fb20dcc77858a439
+      size: 1529
     outs:
     - path: data/dev_filter.parquet
       md5: cea615e745e408f2121e95e7f9cf4eb2
@@ -87,8 +87,8 @@ stages:
       md5: 9fb38c5d41f618a24934a8f49ccd3709
       size: 16921
     - path: singing_classifier/filter.py
-      md5: c095f11db114c7032e861d8804b7ea26
-      size: 1544
+      md5: 5528e63da544cbe3fb20dcc77858a439
+      size: 1529
     outs:
     - path: data/test_filter.parquet
       md5: 917d1a061a411eb360e63e0cf482c770
@@ -104,8 +104,8 @@ stages:
       md5: 157fdf8009127a267ae74e27015c6b15
       size: 28994
     - path: singing_classifier/filter.py
-      md5: c095f11db114c7032e861d8804b7ea26
-      size: 1544
+      md5: 5528e63da544cbe3fb20dcc77858a439
+      size: 1529
     outs:
     - path: data/train_filter.parquet
       md5: 46af142486a285c66b993ddf7aca8e78
@@ -121,9 +121,37 @@ stages:
       md5: 5991857ad4f3c61c0e6470749292c679
       size: 87083
     - path: singing_classifier/filter.py
-      md5: c095f11db114c7032e861d8804b7ea26
-      size: 1544
+      md5: 5528e63da544cbe3fb20dcc77858a439
+      size: 1529
     outs:
     - path: data/segments_filter.parquet
       md5: 8205b0c92512a50853319fe97362f6f3
       size: 78749
+  train:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet Head models/Head.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: 9a6d63ac563acd589a8f9c64d6ca67c5
+      size: 4371
+    params:
+      params.yaml:
+        models.test-target: Head
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.sample-rate: 16000
+    outs:
+    - path: models/Head.pkl
+      md5: 4fbf21b602456ec4ab75a038ebcbebd9
+      size: 47122306

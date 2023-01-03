@@ -1,3 +1,5 @@
+params:
+  - params.yaml
 stages:
   clean:
     desc: Clean input dataframes of invalid data
@@ -62,3 +64,27 @@ stages:
       - singing_classifier/filter.py
       outs:
       - ${item.out}
+  train:
+    cmd: python -m singing_classifier.train
+      --epochs ${nn.epochs}
+      --sample-rate ${nn.sample-rate}
+      --batch-duration-ms ${nn.batch.audio-length-ms}
+      --batch-size ${nn.batch.size}
+      --train data/train_filter.parquet
+      --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet
+      ${models.test-target}
+      models/${models.test-target}.pkl
+    deps:
+      - data/train_filter.parquet
+      - data/dev_filter.parquet
+      - data/etl_segment_summary.parquet
+      - singing_classifier/train.py
+    params:
+      - nn.epochs
+      - nn.sample-rate
+      - nn.batch.audio-length-ms
+      - nn.batch.size
+      - models.test-target
+    outs:
+      - models/${models.test-target}.pkl
