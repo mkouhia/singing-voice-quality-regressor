@@ -1,12 +1,13 @@
 nn:
   epochs: 2
-  sample-rate: 16000
+  mel-spectrogram:
+    sample-rate: 16000
+    n-fft: 400
   batch:
     size: 64
     audio-length-ms: 4000
 
 models:
-  test-target: Head
   targets:
     - Head
     - Chest

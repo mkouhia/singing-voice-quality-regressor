@@ -130,7 +130,8 @@ stages:
   train:
     cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
       4000 --batch-size 64 --train data/train_filter.parquet --valid data/dev_filter.parquet
-      --segment_summary data/etl_segment_summary.parquet Head models/Head.pkl
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/Head.json
+      --lr-plot plots/lr_Head.png --loss-plot plots/loss_Head.png Head models/Head.pkl
     deps:
     - path: data/dev_filter.parquet
       md5: cea615e745e408f2121e95e7f9cf4eb2
@@ -142,8 +143,8 @@ stages:
       md5: 46af142486a285c66b993ddf7aca8e78
       size: 26444
     - path: singing_classifier/train.py
-      md5: 9a6d63ac563acd589a8f9c64d6ca67c5
-      size: 4371
+      md5: 1f1b0986266c8377fc2f8a98a821c20a
+      size: 5959
     params:
       params.yaml:
         models.test-target: Head
@@ -152,6 +153,281 @@ stages:
         nn.epochs: 2
         nn.sample-rate: 16000
     outs:
+    - path: metrics/Head.json
+      md5: 750cd5eda8b8ea161f931ffa31fd242c
+      size: 70
     - path: models/Head.pkl
-      md5: 4fbf21b602456ec4ab75a038ebcbebd9
-      size: 47122306
+      md5: f088a3b9440a7be89ede3b7ef83e8432
+      size: 47122370
+    - path: plots/loss_Head.png
+      md5: 08e326d8186208b7867dbc8acd8be0d9
+      size: 20818
+    - path: plots/lr_Head.png
+      md5: 8ef8e73ea7e682b766c6554fe5a01db3
+      size: 23814
+  train@Head:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Head.json
+      --lr-plot plots/lr_Head.png --loss-plot plots/loss_Head.png Head models/Head.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Head.json
+      md5: e6fc9afe6f217978610882b9c7fce5ad
+      size: 77
+    - path: models/Head.pkl
+      md5: 7713d87e1703426a6ea5ddff037e9674
+      size: 47093314
+    - path: plots/loss_Head.png
+      md5: 00e22047cb221c610d040ce875846759
+      size: 19755
+    - path: plots/lr_Head.png
+      md5: 3dffbd204a4de5af8fbe10d54030f71c
+      size: 22476
+  train@Open:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Open.json
+      --lr-plot plots/lr_Open.png --loss-plot plots/loss_Open.png Open models/Open.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Open.json
+      md5: 28e6d74f6c446eb9716ea45805a62764
+      size: 76
+    - path: models/Open.pkl
+      md5: cb2d48a7c2ab9b05baa3122c1da09b14
+      size: 47093250
+    - path: plots/loss_Open.png
+      md5: 64a9a4d443481555c922e0d6550d2658
+      size: 18453
+    - path: plots/lr_Open.png
+      md5: 0effcc60999fdde2247a4c2bcb1e2283
+      size: 23551
+  train@Breathy:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Breathy.json
+      --lr-plot plots/lr_Breathy.png --loss-plot plots/loss_Breathy.png Breathy models/Breathy.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Breathy.json
+      md5: 47a514de1f241132d92999869a56cdf4
+      size: 76
+    - path: models/Breathy.pkl
+      md5: 169a8ab570e7a813d5d52ad0c4feb628
+      size: 47088631
+    - path: plots/loss_Breathy.png
+      md5: a5d4b48f900d1b6b4b0fd573e75bd5e3
+      size: 20963
+    - path: plots/lr_Breathy.png
+      md5: f9145874ac68bf6213f8a2866d7b9b47
+      size: 23902
+  train@Front:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Front.json
+      --lr-plot plots/lr_Front.png --loss-plot plots/loss_Front.png Front models/Front.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Front.json
+      md5: c950837f98e61a03e07699373ebf49c8
+      size: 74
+    - path: models/Front.pkl
+      md5: 8d8f63637c56b30b81edd3ca379a807c
+      size: 47088169
+    - path: plots/loss_Front.png
+      md5: 55d3781216cd0e2e27e38be4b4ebf9f3
+      size: 20280
+    - path: plots/lr_Front.png
+      md5: a36ceb3974445e189460895378e45d76
+      size: 23165
+  train@Vibrato:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Vibrato.json
+      --lr-plot plots/lr_Vibrato.png --loss-plot plots/loss_Vibrato.png Vibrato models/Vibrato.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Vibrato.json
+      md5: 0351899beb97257cbb947087d6d0d980
+      size: 73
+    - path: models/Vibrato.pkl
+      md5: 747452403ee29988c3cc689ae10669f8
+      size: 47096823
+    - path: plots/loss_Vibrato.png
+      md5: 73e15553fe919b653b857c6ccce51e83
+      size: 21580
+    - path: plots/lr_Vibrato.png
+      md5: 263f34d4b046559dc9908c8f7ebb287f
+      size: 22658
+  train@Chest:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Chest.json
+      --lr-plot plots/lr_Chest.png --loss-plot plots/loss_Chest.png Chest models/Chest.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Chest.json
+      md5: e49212fdfa0d878280cf2104a6f311de
+      size: 78
+    - path: models/Chest.pkl
+      md5: a2564d22fe5411b5d3e23b868c5e2170
+      size: 47093417
+    - path: plots/loss_Chest.png
+      md5: adbc236f3861f54cdfcc4220caaca84c
+      size: 24725
+    - path: plots/lr_Chest.png
+      md5: d5041f77d2ff0c09cde698afacd38d88
+      size: 23640
+  train@Back:
+    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid/Back.json
+      --lr-plot plots/lr_Back.png --loss-plot plots/loss_Back.png Back models/Back.pkl
+    deps:
+    - path: data/dev_filter.parquet
+      md5: cea615e745e408f2121e95e7f9cf4eb2
+      size: 16250
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_filter.parquet
+      md5: 46af142486a285c66b993ddf7aca8e78
+      size: 26444
+    - path: singing_classifier/train.py
+      md5: bca7ea2c5efe0383159d887eee55f553
+      size: 6167
+    params:
+      params.yaml:
+        nn.batch.audio-length-ms: 4000
+        nn.batch.size: 64
+        nn.epochs: 2
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
+    outs:
+    - path: metrics/valid/Back.json
+      md5: 78012823dd76b0bb7bfb2096100c344c
+      size: 76
+    - path: models/Back.pkl
+      md5: 04850d5e7809cd9d87f8915a4e3984cc
+      size: 47087938
+    - path: plots/loss_Back.png
+      md5: 08ef9a4bc05fa0510b78800fd79d7951
+      size: 22622
+    - path: plots/lr_Back.png
+      md5: cca1c73e5a37cb6da61a5e7eee222dfe
+      size: 22924

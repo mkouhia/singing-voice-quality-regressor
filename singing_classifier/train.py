@@ -1,7 +1,10 @@
 """Train fast.ai model."""
 
 import argparse
+import json
+from os import PathLike
 from pathlib import Path
+from matplotlib import pyplot as plt
 
 import pandas as pd
 from fastai.data.block import CategoryBlock, DataBlock
@@ -58,6 +61,7 @@ def create_learner(
     sample_rate: int,
     batch_duration_ms: int,
     batch_size: int,
+    n_fft: int = 400,
 ) -> Learner:
     """Create fast.ai learner for training.
 
@@ -68,11 +72,12 @@ def create_learner(
         sample_rate: Audio sample rate to use in learner.
         batch_duration_ms: Audio sample duration for batches.
         batch_size: Number of samples in a batch.
+        n_fft: Size of FFT
 
     Returns:
         Fast.ai learner.
     """
-    cfg = AudioConfig.BasicMelSpectrogram(sample_rate=sample_rate, n_fft=512)
+    cfg = AudioConfig.BasicMelSpectrogram(sample_rate=sample_rate, n_fft=n_fft)
     a2s = AudioToSpec.from_cfg(cfg)
 
     dblock = DataBlock(
@@ -113,6 +118,10 @@ def train_learner(
     sample_rate: int,
     batch_duration_ms: int,
     batch_size: int,
+    n_fft: int,
+    metrics: Path = None,
+    lr_plot: Path = None,
+    loss_plot: Path = None,
 ):
     """Train fast.ai learner and save it to disk.
 
@@ -126,16 +135,41 @@ def train_learner(
         sample_rate: Audio sample rate to use in learner.
         batch_duration_ms: Audio sample duration for batches.
         batch_size: Number of samples in a batch.
-
+        metrics: Model metrics output file location.
+        lr_plot: Learning rate plot output file location.
+        lr_plot: Loss plot output file location.
     """
     learn_data = gather_data(train, valid, segment_summary, target)
     learner = create_learner(
-        learn_data, target, sample_rate, batch_duration_ms, batch_size
+        learn_data, target, sample_rate, batch_duration_ms, batch_size, n_fft
     )
 
-    lr_suggested = learner.lr_find(show_plot=False)
+    lr_suggested = learner.lr_find(show_plot=bool(lr_plot))
+
+    if lr_plot:
+        plt.savefig(lr_plot)
+        plt.clf()
+
     learner.fine_tune(epochs, lr_suggested.valley)
+
+    if loss_plot:
+        learner.recorder.plot_loss()
+        plt.savefig(loss_plot)
+        plt.clf()
+
+    if metrics:
+        metric_values = {i.name: float(i.value) for i in learner.metrics}
+        with metrics.open("w", encoding="utf-8") as file_:
+            json.dump(metric_values, file_, indent=2)
+            file_.write("\n")
+
     learner.export(model)
+
+
+def _path_ensure_parent(path_like: PathLike) -> Path:
+    ret = Path(path_like)
+    ret.parent.mkdir(parents=True, exist_ok=True)
+    return ret
 
 
 if __name__ == "__main__":
@@ -144,11 +178,15 @@ if __name__ == "__main__":
     parser.add_argument("--sample-rate", type=int, default=16000)
     parser.add_argument("--batch-duration-ms", type=int, default=4000)
     parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--n-fft", type=int, default=400)
     parser.add_argument("--train", type=Path, required=True)
     parser.add_argument("--valid", type=Path, required=True)
     parser.add_argument("--segment_summary", type=Path, required=True)
+    parser.add_argument("--metrics", type=_path_ensure_parent)
+    parser.add_argument("--lr-plot", type=_path_ensure_parent)
+    parser.add_argument("--loss-plot", type=_path_ensure_parent)
     parser.add_argument("target", type=str)
-    parser.add_argument("model", type=Path)
+    parser.add_argument("model", type=_path_ensure_parent)
 
     namespace = parser.parse_args()
     train_learner(**vars(namespace))

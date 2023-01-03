@@ -65,26 +65,38 @@ stages:
       outs:
       - ${item.out}
   train:
-    cmd: python -m singing_classifier.train
-      --epochs ${nn.epochs}
-      --sample-rate ${nn.sample-rate}
-      --batch-duration-ms ${nn.batch.audio-length-ms}
-      --batch-size ${nn.batch.size}
-      --train data/train_filter.parquet
-      --valid data/dev_filter.parquet
-      --segment_summary data/etl_segment_summary.parquet
-      ${models.test-target}
-      models/${models.test-target}.pkl
-    deps:
-      - data/train_filter.parquet
-      - data/dev_filter.parquet
-      - data/etl_segment_summary.parquet
-      - singing_classifier/train.py
-    params:
-      - nn.epochs
-      - nn.sample-rate
-      - nn.batch.audio-length-ms
-      - nn.batch.size
-      - models.test-target
-    outs:
-      - models/${models.test-target}.pkl
+    foreach: ${models.targets}
+    do:
+      cmd: python -m singing_classifier.train
+        --epochs ${nn.epochs}
+        --sample-rate ${nn.mel-spectrogram.sample-rate}
+        --batch-duration-ms ${nn.batch.audio-length-ms}
+        --batch-size ${nn.batch.size}
+        --n-fft ${nn.mel-spectrogram.n-fft}
+        --train data/train_filter.parquet
+        --valid data/dev_filter.parquet
+        --segment_summary data/etl_segment_summary.parquet
+        --metrics metrics/valid/${item}.json
+        --lr-plot plots/lr_${item}.png
+        --loss-plot plots/loss_${item}.png
+        ${item}
+        models/${item}.pkl
+      deps:
+        - data/train_filter.parquet
+        - data/dev_filter.parquet
+        - data/etl_segment_summary.parquet
+        - singing_classifier/train.py
+      params:
+        - nn.epochs
+        - nn.mel-spectrogram.sample-rate
+        - nn.mel-spectrogram.n-fft
+        - nn.batch.audio-length-ms
+        - nn.batch.size
+      outs:
+        - models/${item}.pkl
+      metrics:
+        - metrics/valid/${item}.json:
+            cache: false
+      plots:
+        - plots/lr_${item}.png
+        - plots/loss_${item}.png
