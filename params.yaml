@@ -1,0 +1,18 @@
+nn:
+  epochs: 2
+  mel-spectrogram:
+    sample-rate: 16000
+    n-fft: 400
+  batch:
+    size: 64
+    audio-length-ms: 4000
+
+models:
+  targets:
+    - Head
+    - Chest
+    - Open
+    - Breathy
+    - Vibrato
+    - Front
+    - Back
