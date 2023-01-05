@@ -45,10 +45,6 @@ stages:
       md5: 75936c2aa8fb789edc02f9c53d8528b9
       size: 18531
     outs:
-    - path: data/audio_raw
-      md5: 601d9f2c9f23efc7b5d127f166ee5521.dir
-      size: 1027731597
-      nfiles: 242
     - path: data/audio_segments
       md5: bf5d7e47f617e627492a75511d06fb82.dir
       size: 821987034

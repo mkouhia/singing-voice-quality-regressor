@@ -28,10 +28,6 @@ stages:
     - data/segments_clean.parquet
     - singing_classifier/etl.py
     outs:
-    - data/audio_raw:
-        desc: Folder for audio files extracted from YouTube.
-        cache: false
-        persist: true
     - data/audio_segments:
         persist: true
     - data/etl_audio_summary.parquet
