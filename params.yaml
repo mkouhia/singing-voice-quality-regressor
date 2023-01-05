@@ -1,5 +1,5 @@
 nn:
-  epochs: 2
+  epochs: 10
   mel-spectrogram:
     sample-rate: 16000
     n-fft: 400
@@ -9,10 +9,10 @@ nn:
 
 models:
   targets:
-    - Head
-    - Chest
-    - Open
-    - Breathy
-    - Vibrato
-    - Front
-    - Back
+  - Head
+  - Chest
+  - Open
+  - Breathy
+  - Vibrato
+  - Front
+  - Back
