@@ -28,6 +28,7 @@ pip install colorednoise
 pip install -U git+https://github.com/mkouhia/fastaudio.git@master --no-deps
 
 
-echo "Setup done! please perform following:"
-echo "vi .dvc/config.local  # add configuration for data storage"
+echo ""
+echo "Setup done! please configure data storage and pull data:"
+echo "dvc remote add --local -d myremote /path/to/remote"
 echo "dvc pull"
