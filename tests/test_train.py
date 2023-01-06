@@ -17,7 +17,7 @@ def fx_learn_df() -> pd.DataFrame:
     """Returns dataframe for learner."""
     return pd.DataFrame(
         {
-            "Chest": [0, 3, 1, 2],
+            "Chest": [0.0, 3.0, 1.0, 2.0],
             "path": ["d/a_0.m4a", "d/a_1.m4a", "d/b_0.m4a", "d/b_1.m4a"],
             "is_valid": [False, False, True, True],
         }
@@ -29,7 +29,7 @@ def test_gather_data(tmp_path: Path, learn_df: pd.DataFrame):
     train = tmp_path / "train.parquet"
     valid = tmp_path / "valid.parquet"
     segment_summary = tmp_path / "segments.parquet"
-    target = "Chest"
+    targets = ["Chest"]
 
     train_content = """tag,seg_num,Head,Chest,song
 a,0,2,0,foo
@@ -54,7 +54,7 @@ b,1,d/b_1.m4a
         data = pd.read_csv(StringIO(text))
         data.to_parquet(dest)
 
-    received = gather_data(train, valid, segment_summary, target)
+    received = gather_data(train, valid, segment_summary, targets, "float")
 
     assert_frame_equal(received, learn_df)
 
@@ -68,7 +68,7 @@ def test_create_learner(tmp_path: Path, learn_df: pd.DataFrame):
 
     received = create_learner(
         learn_df=learn_df,
-        target="Chest",
+        targets=["Chest"],
         sample_rate=32000,
         batch_duration_ms=1000,
         batch_size=12,
