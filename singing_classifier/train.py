@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import logging
 from collections.abc import Collection
 from os import PathLike
 from pathlib import Path
@@ -10,7 +11,7 @@ from matplotlib import pyplot as plt
 import pandas as pd
 from fastai.data.block import DataBlock, RegressionBlock
 from fastai.data.transforms import ColReader, ColSplitter
-from fastai.losses import MSELossFlat, L1LossFlat
+from fastai.losses import L1LossFlat
 from fastai.vision.all import vision_learner
 from fastai.vision.learner import Learner
 from fastai.vision.models import resnet18
@@ -18,6 +19,9 @@ from fastaudio.augment.preprocess import RemoveSilence, Resample
 from fastaudio.augment.signal import DownmixMono, ResizeSignal
 from fastaudio.core.config import AudioBlock, AudioConfig
 from fastaudio.core.spectrogram import AudioToSpec
+
+
+logger = logging.getLogger(__name__)
 
 
 def gather_data(
@@ -39,6 +43,7 @@ def gather_data(
     Returns:
         Joined dataframe, with columns `target`, 'path' and 'is_valid'.
     """
+    logger.info("Gathering data")
     segments = pd.read_parquet(segment_summary)
     segments = segments[~segments["path"].isna()][["tag", "num", "path"]]
 
@@ -89,6 +94,8 @@ def create_learner(
     Returns:
         Fast.ai learner.
     """
+    logger.info("Creating learner")
+
     cfg = AudioConfig.BasicMelSpectrogram(sample_rate=sample_rate, n_fft=n_fft)
     a2s = AudioToSpec.from_cfg(cfg)
 
@@ -108,15 +115,12 @@ def create_learner(
 
     dls = dblock.dataloaders(learn_df, bs=batch_size)  # verbose=True
 
-    mse_loss = MSELossFlat()
-    mse_loss.__name__ = "MSELossFlat"
     # TODO add output clamping, e.g. like https://forums.fast.ai/t/image-regression-using-fastai/27784/22?u=mosscoder
     return vision_learner(
         dls,
         resnet18,
         n_in=1,  # <- Number of audio channels
         loss_func=L1LossFlat(),
-        metrics=[mse_loss],
     )
 
 
@@ -151,17 +155,21 @@ def train_learner(
         lr_plot: Learning rate plot output file location.
         lr_plot: Loss plot output file location.
     """
+    logger.info("Train learner with validation data")
     learn_data = gather_data(train, valid, segment_summary, targets, "float")
     learner = create_learner(
         learn_data, targets, sample_rate, batch_duration_ms, batch_size, n_fft
     )
 
+    logger.info("Find learning rate")
     lr_suggested = learner.lr_find(show_plot=bool(lr_plot))
+    logger.info("Suggested learning rate: %.2E", lr_suggested)
 
     if lr_plot:
         plt.savefig(lr_plot)
         plt.clf()
 
+    logger.info("Perform fine tuning")
     learner.fine_tune(epochs, lr_suggested.valley)
 
     if loss_plot:
@@ -170,12 +178,16 @@ def train_learner(
         plt.clf()
 
     if metrics:
+        logger.info("Save metrics")
         metric_values = {i.name: float(i.value) for i in learner.metrics}
         with metrics.open("w", encoding="utf-8") as file_:
             json.dump(metric_values, file_, indent=2)
             file_.write("\n")
 
+    logger.info("Export learner to %s", model)
     learner.export(model)
+
+    logger.info("Ready!")
 
 
 def _path_ensure_parent(path_like: PathLike) -> Path:
@@ -185,6 +197,10 @@ def _path_ensure_parent(path_like: PathLike) -> Path:
 
 
 if __name__ == "__main__":
+
+    log_fmt = '%(asctime)s %(levelname)s: %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_fmt, datefmt="%Y-%m-%d %H:%M:%S")
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--sample-rate", type=int, default=16000)
