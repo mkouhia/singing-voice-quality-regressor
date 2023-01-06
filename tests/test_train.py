@@ -28,33 +28,25 @@ def test_gather_data(tmp_path: Path, learn_df: pd.DataFrame):
     """Gathered data contains columns `target`, 'path' and 'is_valid'."""
     train = tmp_path / "train.parquet"
     valid = tmp_path / "valid.parquet"
-    segment_summary = tmp_path / "segments.parquet"
     target = "Chest"
 
-    train_content = """tag,seg_num,Head,Chest,song
-a,0,2,0,foo
-a,1,1,3,foo
+    train_content = """tag,seg_num,Head,Chest,song,path
+a,0,2,0,foo,d/a_0.m4a
+a,1,1,3,foo,d/a_1.m4a
 """
-    valid_content = """tag,seg_num,Head,Chest,song
-b,0,0,1,bar
-b,1,3,2,bar
-"""
-    segment_content = """tag,num,path
-a,0,d/a_0.m4a
-a,1,d/a_1.m4a
-b,0,d/b_0.m4a
-b,1,d/b_1.m4a
+    valid_content = """tag,seg_num,Head,Chest,song,path
+b,0,0,1,bar,d/b_0.m4a
+b,1,3,2,bar,d/b_1.m4a
 """
 
     for text, dest in [
         (train_content, train),
         (valid_content, valid),
-        (segment_content, segment_summary),
     ]:
         data = pd.read_csv(StringIO(text))
         data.to_parquet(dest)
 
-    received = gather_data(train, valid, segment_summary, target)
+    received = gather_data(train, valid, target)
 
     assert_frame_equal(received, learn_df)
 

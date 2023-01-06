@@ -427,3 +427,71 @@ stages:
     - path: plots/lr_Back.png
       md5: 78def754dcacd17597967e1aebe3c53b
       size: 22415
+  merge@test:
+    cmd: python -m singing_classifier.merge --filter --num-col seg_num data/etl_segment_summary.parquet
+      data/test_clean.parquet data/test_filter.parquet
+    deps:
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/test_clean.parquet
+      md5: 9fb38c5d41f618a24934a8f49ccd3709
+      size: 16921
+    - path: singing_classifier/merge.py
+      md5: cbf0fc5dffe34f52ba11389b9d8c052c
+      size: 2471
+    outs:
+    - path: data/test_filter.parquet
+      md5: 46d72e3da0365b08cfbc705d9f671839
+      size: 24962
+  merge@dev:
+    cmd: python -m singing_classifier.merge --filter --num-col seg_num data/etl_segment_summary.parquet
+      data/dev_clean.parquet data/dev_filter.parquet
+    deps:
+    - path: data/dev_clean.parquet
+      md5: 09d3c97c567edc4c2e8c885fe2a85fab
+      size: 17034
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: singing_classifier/merge.py
+      md5: cbf0fc5dffe34f52ba11389b9d8c052c
+      size: 2471
+    outs:
+    - path: data/dev_filter.parquet
+      md5: 13b7bd251bbca8e0cdf48c237b3d2dce
+      size: 24846
+  merge@segments:
+    cmd: python -m singing_classifier.merge --filter --num-col num data/etl_segment_summary.parquet
+      data/segments_clean.parquet data/segments_filter.parquet
+    deps:
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/segments_clean.parquet
+      md5: 5991857ad4f3c61c0e6470749292c679
+      size: 87083
+    - path: singing_classifier/merge.py
+      md5: cbf0fc5dffe34f52ba11389b9d8c052c
+      size: 2471
+    outs:
+    - path: data/segments_filter.parquet
+      md5: dc0e20da851578c0fc3c16a69084911a
+      size: 107379
+  merge@train:
+    cmd: python -m singing_classifier.merge --filter --num-col seg_num data/etl_segment_summary.parquet
+      data/train_clean.parquet data/train_filter.parquet
+    deps:
+    - path: data/etl_segment_summary.parquet
+      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
+      size: 47919
+    - path: data/train_clean.parquet
+      md5: 157fdf8009127a267ae74e27015c6b15
+      size: 28994
+    - path: singing_classifier/merge.py
+      md5: cbf0fc5dffe34f52ba11389b9d8c052c
+      size: 2471
+    outs:
+    - path: data/train_filter.parquet
+      md5: ab52c71563913f6ea16d0af261992555
+      size: 45446

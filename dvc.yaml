@@ -32,7 +32,7 @@ stages:
         persist: true
     - data/etl_audio_summary.parquet
     - data/etl_segment_summary.parquet
-  filter:
+  merge:
     foreach:
       segments:
         data: data/segments_clean.parquet
@@ -51,13 +51,13 @@ stages:
         out: data/dev_filter.parquet
         num-col: seg_num
     do:
-      cmd: python -m singing_classifier.filter
+      cmd: python -m singing_classifier.merge --filter
         --num-col ${item.num-col}
         data/etl_segment_summary.parquet ${item.data} ${item.out}
       deps:
       - data/etl_segment_summary.parquet
       - ${item.data}
-      - singing_classifier/filter.py
+      - singing_classifier/merge.py
       outs:
       - ${item.out}
   train:
@@ -71,7 +71,6 @@ stages:
         --n-fft ${nn.mel-spectrogram.n-fft}
         --train data/train_filter.parquet
         --valid data/dev_filter.parquet
-        --segment_summary data/etl_segment_summary.parquet
         --metrics metrics/valid/${item}.json
         --lr-plot plots/lr_${item}.png
         --loss-plot plots/loss_${item}.png
