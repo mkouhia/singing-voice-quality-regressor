@@ -7,12 +7,13 @@ nn:
     size: 64
     audio-length-ms: 4000
 
-models:
+model:
   targets:
-  - Head
-  - Chest
-  - Open
-  - Breathy
-  - Vibrato
-  - Front
-  - Back
+    targets:
+    - Head
+    - Chest
+    - Open
+    - Breathy
+    - Vibrato
+    - Front
+    - Back
