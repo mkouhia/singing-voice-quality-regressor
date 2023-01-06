@@ -198,7 +198,7 @@ def _path_ensure_parent(path_like: PathLike) -> Path:
 
 if __name__ == "__main__":
 
-    log_fmt = '%(asctime)s %(levelname)s: %(message)s'
+    log_fmt = "%(asctime)s %(levelname)s: %(message)s"
     logging.basicConfig(level=logging.INFO, format=log_fmt, datefmt="%Y-%m-%d %H:%M:%S")
 
     parser = argparse.ArgumentParser()
