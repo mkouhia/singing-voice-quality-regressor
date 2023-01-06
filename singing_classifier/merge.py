@@ -1,5 +1,4 @@
-"""After ETL, filter datasets to only include existing segments."""
-
+"""Merge paths from ETL results back to data."""
 
 import argparse
 from pathlib import Path
@@ -7,13 +6,29 @@ from pathlib import Path
 import pandas as pd
 
 
-def filter_data(
+def merge_data(
     split_summary: Path,
     data: Path,
     out: Path,
     tag_col: str = "tag",
     num_col: str = "num",
+    remove_empty_paths: bool = True,
 ):
+    """Merge path from split_summary to data.
+
+    Args:
+        split_summary: Path to split summary parquet file. The data
+          must contain columns 'tag', 'num' and 'path'.
+        data: Path to data file, containing records with a tag and
+          record number, corresponding to split_summary file.
+        out: Path to output Parquet file location.
+        tag_col: Column in `data`, which maps to split_summary 'tag'
+          column. Defaults to "tag".
+        num_col: Column in `data`, which maps to split_summary 'seg_num`
+          column. Defaults to "num".
+        remove_empty_paths: Drop records, whose path in split_summary
+          is NA. Defaults to True.
+    """
     orig_data = pd.read_parquet(data)
     summary_data = pd.read_parquet(split_summary)
     joined = pd.merge(
@@ -23,9 +38,13 @@ def filter_data(
         right_on=["tag", "num"],
         how="inner",
     )
-    joined = joined[~joined["path"].isna()].drop(
-        columns=[i for i in ["tag", "num", "path"] if i not in orig_data.columns]
+
+    joined = joined.drop(
+        columns=[i for i in ["tag", "num"] if i not in orig_data.columns]
     )
+
+    if remove_empty_paths:
+        joined = joined[~joined["path"].isna()]
 
     joined.to_parquet(out)
 
@@ -33,6 +52,12 @@ def filter_data(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
+    parser.add_argument(
+        "--filter",
+        dest="remove_empty_paths",
+        help="Remove recods, whose path is not determined in split_summary",
+        action="store_true",
+    )
     parser.add_argument(
         "--tag-col",
         help="Column name in data for tag",
@@ -63,4 +88,4 @@ if __name__ == "__main__":
 
     parser_args = parser.parse_args()
     parser_kwargs = vars(parser_args)
-    filter_data(**parser_kwargs)
+    merge_data(**parser_kwargs)

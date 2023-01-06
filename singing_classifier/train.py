@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 def gather_data(
     train: Path,
     valid: Path,
-    segment_summary: Path,
     targets: Collection[str],
     target_astype: str = None,
 ) -> pd.DataFrame:
@@ -36,7 +35,6 @@ def gather_data(
     Args:
         train: Path to train dataframe Parquet file.
         valid: Path to test dataframe Parquet file.
-        segment_summary: Path to segment summary Parquet file.
         targets: Names of target columns to be included in the result.
         target_astype: Convert targets to this type.
 
@@ -44,21 +42,10 @@ def gather_data(
         Joined dataframe, with columns `target`, 'path' and 'is_valid'.
     """
     logger.info("Gathering data")
-    segments = pd.read_parquet(segment_summary)
-    segments = segments[~segments["path"].isna()][["tag", "num", "path"]]
-
-    def _add_paths(data):
-        return pd.merge(
-            data,
-            segments,
-            left_on=["tag", "seg_num"],
-            right_on=["tag", "num"],
-            how="inner",
-        ).drop(columns=["num"])
 
     ret = pd.concat(
         [
-            _add_paths(pd.read_parquet(data_path)).assign(is_valid=is_valid_)
+            pd.read_parquet(data_path).assign(is_valid=is_valid_)
             for is_valid_, data_path in [(False, train), (True, valid)]
         ],
         axis=0,
@@ -127,7 +114,6 @@ def create_learner(
 def train_learner(
     train: Path,
     valid: Path,
-    segment_summary: Path,
     targets: Collection[str],
     model: Path,
     epochs: int,
@@ -144,7 +130,6 @@ def train_learner(
     Args:
         train: Path to train dataframe Parquet file.
         valid: Path to test dataframe Parquet file.
-        segment_summary: Path to segment summary Parquet file.
         targets: Names of target columns to be included in the result.
         model: Model output file location.
         epochs: Number of epochs for the model.
@@ -156,7 +141,7 @@ def train_learner(
         lr_plot: Loss plot output file location.
     """
     logger.info("Train learner with validation data")
-    learn_data = gather_data(train, valid, segment_summary, targets, "float")
+    learn_data = gather_data(train, valid, targets, "float")
     learner = create_learner(
         learn_data, targets, sample_rate, batch_duration_ms, batch_size, n_fft
     )
@@ -209,7 +194,6 @@ if __name__ == "__main__":
     parser.add_argument("--n-fft", type=int, default=400)
     parser.add_argument("--train", type=Path, required=True)
     parser.add_argument("--valid", type=Path, required=True)
-    parser.add_argument("--segment_summary", type=Path, required=True)
     parser.add_argument("--metrics", type=_path_ensure_parent)
     parser.add_argument("--lr-plot", type=_path_ensure_parent)
     parser.add_argument("--loss-plot", type=_path_ensure_parent)
