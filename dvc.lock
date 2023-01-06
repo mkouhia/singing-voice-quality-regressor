@@ -126,22 +126,18 @@ stages:
   train:
     cmd: python -m singing_classifier.train --epochs 10 --sample-rate 16000 --batch-duration-ms
       4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
-      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid.json
-      --lr-plot plots/lr.png --loss-plot plots/loss.png --targets Head Chest Open
-      Breathy Vibrato Front Back -- models/model.pkl
+      --metrics metrics/valid.json --lr-plot plots/lr.png --loss-plot plots/loss.png
+      --targets Head Chest Open Breathy Vibrato Front Back -- models/model.pkl
     deps:
     - path: data/dev_filter.parquet
-      md5: cea615e745e408f2121e95e7f9cf4eb2
-      size: 16250
-    - path: data/etl_segment_summary.parquet
-      md5: 4e30dc664ab1f7b7744f2c5bceecfdf8
-      size: 47919
+      md5: 57c3ba484200092505a763588006c882
+      size: 24844
     - path: data/train_filter.parquet
-      md5: 46af142486a285c66b993ddf7aca8e78
-      size: 26444
+      md5: bd90f586f405bd56920f5cf3a5bc9fe8
+      size: 45444
     - path: singing_classifier/train.py
-      md5: 8adae7d72dcb75ba924bb0823134c93a
-      size: 7090
+      md5: 389fbddfe1d091ef05c72acf96d38137
+      size: 6462
     params:
       params.yaml:
         model.targets:
@@ -163,14 +159,14 @@ stages:
       md5: 8a80554c91d9fca8acb82f023de02f11
       size: 3
     - path: models/model.pkl
-      md5: 57b5bde11a5b39c71bd89a7a22df8aca
-      size: 47096109
+      md5: e1442bfce0a2e3fa6958e67a5630e45e
+      size: 47095981
     - path: plots/loss.png
-      md5: 05aaf5f29bd59c2a14f6f31865de33a5
-      size: 22698
+      md5: 399ef4b31754334b58c061aafe12e395
+      size: 23173
     - path: plots/lr.png
-      md5: 747ac2987025359dc648169f89b78ed9
-      size: 20098
+      md5: 3db3f30d24866202e4ac9630a4526b49
+      size: 20163
   train@Head:
     cmd: python -m singing_classifier.train --epochs 10 --sample-rate 16000 --batch-duration-ms
       4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
@@ -452,8 +448,8 @@ stages:
       size: 2471
     outs:
     - path: data/test_filter.parquet
-      md5: 46d72e3da0365b08cfbc705d9f671839
-      size: 24962
+      md5: 07f41bb74bf5517040bf338c86c38dc2
+      size: 24960
   merge@dev:
     cmd: python -m singing_classifier.merge --filter --num-col seg_num data/etl_segment_summary.parquet
       data/dev_clean.parquet data/dev_filter.parquet
@@ -469,8 +465,8 @@ stages:
       size: 2471
     outs:
     - path: data/dev_filter.parquet
-      md5: 13b7bd251bbca8e0cdf48c237b3d2dce
-      size: 24846
+      md5: 57c3ba484200092505a763588006c882
+      size: 24844
   merge@segments:
     cmd: python -m singing_classifier.merge --filter --num-col num data/etl_segment_summary.parquet
       data/segments_clean.parquet data/segments_filter.parquet
@@ -486,8 +482,8 @@ stages:
       size: 2471
     outs:
     - path: data/segments_filter.parquet
-      md5: dc0e20da851578c0fc3c16a69084911a
-      size: 107379
+      md5: 6a52563830d58f986d34e42ef8ee05d4
+      size: 107365
   merge@train:
     cmd: python -m singing_classifier.merge --filter --num-col seg_num data/etl_segment_summary.parquet
       data/train_clean.parquet data/train_filter.parquet
@@ -503,5 +499,5 @@ stages:
       size: 2471
     outs:
     - path: data/train_filter.parquet
-      md5: ab52c71563913f6ea16d0af261992555
-      size: 45446
+      md5: bd90f586f405bd56920f5cf3a5bc9fe8
+      size: 45444
