@@ -124,10 +124,11 @@ stages:
       md5: 8205b0c92512a50853319fe97362f6f3
       size: 78749
   train:
-    cmd: python -m singing_classifier.train --epochs 2 --sample-rate 16000 --batch-duration-ms
-      4000 --batch-size 64 --train data/train_filter.parquet --valid data/dev_filter.parquet
-      --segment_summary data/etl_segment_summary.parquet --metrics metrics/Head.json
-      --lr-plot plots/lr_Head.png --loss-plot plots/loss_Head.png Head models/Head.pkl
+    cmd: python -m singing_classifier.train --epochs 10 --sample-rate 16000 --batch-duration-ms
+      4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet
+      --segment_summary data/etl_segment_summary.parquet --metrics metrics/valid.json
+      --lr-plot plots/lr.png --loss-plot plots/loss.png --targets Head Chest Open
+      Breathy Vibrato Front Back -- models/model.pkl
     deps:
     - path: data/dev_filter.parquet
       md5: cea615e745e408f2121e95e7f9cf4eb2
@@ -139,28 +140,37 @@ stages:
       md5: 46af142486a285c66b993ddf7aca8e78
       size: 26444
     - path: singing_classifier/train.py
-      md5: 1f1b0986266c8377fc2f8a98a821c20a
-      size: 5959
+      md5: 8adae7d72dcb75ba924bb0823134c93a
+      size: 7090
     params:
       params.yaml:
-        models.test-target: Head
+        model.targets:
+          targets:
+          - Head
+          - Chest
+          - Open
+          - Breathy
+          - Vibrato
+          - Front
+          - Back
         nn.batch.audio-length-ms: 4000
         nn.batch.size: 64
-        nn.epochs: 2
-        nn.sample-rate: 16000
+        nn.epochs: 10
+        nn.mel-spectrogram.n-fft: 400
+        nn.mel-spectrogram.sample-rate: 16000
     outs:
-    - path: metrics/Head.json
-      md5: 750cd5eda8b8ea161f931ffa31fd242c
-      size: 70
-    - path: models/Head.pkl
-      md5: f088a3b9440a7be89ede3b7ef83e8432
-      size: 47122370
-    - path: plots/loss_Head.png
-      md5: 08e326d8186208b7867dbc8acd8be0d9
-      size: 20818
-    - path: plots/lr_Head.png
-      md5: 8ef8e73ea7e682b766c6554fe5a01db3
-      size: 23814
+    - path: metrics/valid.json
+      md5: 8a80554c91d9fca8acb82f023de02f11
+      size: 3
+    - path: models/model.pkl
+      md5: 57b5bde11a5b39c71bd89a7a22df8aca
+      size: 47096109
+    - path: plots/loss.png
+      md5: 05aaf5f29bd59c2a14f6f31865de33a5
+      size: 22698
+    - path: plots/lr.png
+      md5: 747ac2987025359dc648169f89b78ed9
+      size: 20098
   train@Head:
     cmd: python -m singing_classifier.train --epochs 10 --sample-rate 16000 --batch-duration-ms
       4000 --batch-size 64 --n-fft 400 --train data/train_filter.parquet --valid data/dev_filter.parquet

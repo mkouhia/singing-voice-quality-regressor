@@ -163,7 +163,7 @@ def train_learner(
 
     logger.info("Find learning rate")
     lr_suggested = learner.lr_find(show_plot=bool(lr_plot))
-    logger.info("Suggested learning rate: %.2E", lr_suggested)
+    logger.info("Suggested learning rate: %.2E", lr_suggested.valley)
 
     if lr_plot:
         plt.savefig(lr_plot)
@@ -178,7 +178,7 @@ def train_learner(
         plt.clf()
 
     if metrics:
-        logger.info("Save metrics")
+        logger.info("Save metrics to %s", str(metrics))
         metric_values = {i.name: float(i.value) for i in learner.metrics}
         with metrics.open("w", encoding="utf-8") as file_:
             json.dump(metric_values, file_, indent=2)
