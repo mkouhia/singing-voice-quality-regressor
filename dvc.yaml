@@ -61,37 +61,35 @@ stages:
       outs:
       - ${item.out}
   train:
-    foreach: ${models.targets}
-    do:
-      cmd: python -m singing_classifier.train
-        --epochs ${nn.epochs}
-        --sample-rate ${nn.mel-spectrogram.sample-rate}
-        --batch-duration-ms ${nn.batch.audio-length-ms}
-        --batch-size ${nn.batch.size}
-        --n-fft ${nn.mel-spectrogram.n-fft}
-        --train data/train_filter.parquet
-        --valid data/dev_filter.parquet
-        --metrics metrics/valid/${item}.json
-        --lr-plot plots/lr_${item}.png
-        --loss-plot plots/loss_${item}.png
-        ${item}
-        models/${item}.pkl
-      deps:
-        - data/train_filter.parquet
-        - data/dev_filter.parquet
-        - data/etl_segment_summary.parquet
-        - singing_classifier/train.py
-      params:
-        - nn.epochs
-        - nn.mel-spectrogram.sample-rate
-        - nn.mel-spectrogram.n-fft
-        - nn.batch.audio-length-ms
-        - nn.batch.size
-      outs:
-        - models/${item}.pkl
-      metrics:
-        - metrics/valid/${item}.json:
-            cache: false
-      plots:
-        - plots/lr_${item}.png
-        - plots/loss_${item}.png
+    cmd: python -m singing_classifier.train
+      --epochs ${nn.epochs}
+      --sample-rate ${nn.mel-spectrogram.sample-rate}
+      --batch-duration-ms ${nn.batch.audio-length-ms}
+      --batch-size ${nn.batch.size}
+      --n-fft ${nn.mel-spectrogram.n-fft}
+      --train data/train_filter.parquet
+      --valid data/dev_filter.parquet
+      --metrics metrics/valid.json
+      --lr-plot plots/lr.png
+      --loss-plot plots/loss.png
+      ${model.targets} --
+      models/model.pkl
+    deps:
+      - data/train_filter.parquet
+      - data/dev_filter.parquet
+      - singing_classifier/train.py
+    params:
+      - nn.epochs
+      - nn.mel-spectrogram.sample-rate
+      - nn.mel-spectrogram.n-fft
+      - nn.batch.audio-length-ms
+      - nn.batch.size
+      - model.targets
+    outs:
+      - models/model.pkl
+    metrics:
+      - metrics/valid.json:
+          cache: false
+    plots:
+      - plots/lr.png
+      - plots/loss.png

@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from singing_classifier.merge import filter_data
+from singing_classifier.merge import merge_data
 
 
 def test_merge_data(tmp_path: Path):
@@ -44,7 +44,7 @@ def test_merge_data(tmp_path: Path):
 
     out = tmp_path / "clean.parquet"
 
-    filter_data(split_summary, data, out, tag_col="tagx", num_col="seg_num")
+    merge_data(split_summary, data, out, tag_col="tagx", num_col="seg_num")
     received = pd.read_parquet(out)
 
     assert_frame_equal(received, expected)
