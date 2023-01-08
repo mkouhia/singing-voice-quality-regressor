@@ -93,3 +93,23 @@ stages:
     plots:
       - plots/lr.png
       - plots/loss.png
+  evaluate:
+    cmd: python -m singing_classifier.evaluate
+      ${model.targets} ${evaluate.metrics} --out-json metrics/test.json
+      --out-csv-root plots/test
+      -- data/test_filter.parquet models/model.pkl
+    deps:
+      - data/test_filter.parquet
+      - models/model.pkl
+      - singing_classifier/evaluate.py
+    params:
+      - model.targets
+      - evaluate.metrics
+    metrics:
+      - metrics/test.json:
+          cache: false
+    plots:
+      - plots/test:
+          y: predicted
+          x: actual
+          template: scatter
