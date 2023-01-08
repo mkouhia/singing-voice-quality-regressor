@@ -501,3 +501,40 @@ stages:
     - path: data/train_filter.parquet
       md5: bd90f586f405bd56920f5cf3a5bc9fe8
       size: 45444
+  evaluate:
+    cmd: python -m singing_classifier.evaluate --targets Head Chest Open Breathy Vibrato
+      Front Back --metrics rmse 'R2Score()' --out-json metrics/test.json --out-csv-root
+      plots/test -- data/test_filter.parquet models/model.pkl
+    deps:
+    - path: data/test_filter.parquet
+      md5: 07f41bb74bf5517040bf338c86c38dc2
+      size: 24960
+    - path: models/model.pkl
+      md5: e1442bfce0a2e3fa6958e67a5630e45e
+      size: 47095981
+    - path: singing_classifier/evaluate.py
+      md5: e38bc4946d51389db59b076600824347
+      size: 4682
+    params:
+      params.yaml:
+        evaluate.metrics:
+          metrics:
+          - rmse
+          - R2Score()
+        model.targets:
+          targets:
+          - Head
+          - Chest
+          - Open
+          - Breathy
+          - Vibrato
+          - Front
+          - Back
+    outs:
+    - path: metrics/test.json
+      md5: d1523ef444a3246cd96b2b6208106ea7
+      size: 61
+    - path: plots/test
+      md5: e0f0bde46830ed4839d82a2825d7daa6.dir
+      size: 82509
+      nfiles: 7

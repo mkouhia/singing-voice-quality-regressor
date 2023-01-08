@@ -17,3 +17,9 @@ model:
     - Vibrato
     - Front
     - Back
+
+evaluate:
+  metrics:
+    metrics:
+    - rmse
+    - R2Score()
